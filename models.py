@@ -6,6 +6,8 @@ from torch.nn.utils import spectral_norm
 import torch.nn.functional as F
 import torchvision
 
+import misc
+
 
 class Generator(nn.Module):
     '''
@@ -32,16 +34,16 @@ class Generator(nn.Module):
         # Init main residual path
         self.main_path = nn.ModuleList([
             ResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(512 // channels_factor),
-                          feature_channels=512),
+                          feature_channels=513),
             ResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(512 // channels_factor),
-                          feature_channels=512),
+                          feature_channels=513),
             ResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(256 // channels_factor),
-                          feature_channels=256),
+                          feature_channels=257),
             SelfAttention(channels=int(256 // channels_factor)),
             ResidualBlock(in_channels=int(256 // channels_factor), out_channels=int(128 // channels_factor),
-                          feature_channels=128),
+                          feature_channels=129),
             ResidualBlock(in_channels=int(128 // channels_factor), out_channels=int(64 // channels_factor),
-                          feature_channels=64)
+                          feature_channels=65)
         ])
         # Init final block
         self.final_block = nn.Sequential(
@@ -55,19 +57,27 @@ class Generator(nn.Module):
                           stride=(1, 1), padding=(0, 0), bias=True))
         )
 
-    def forward(self, input: torch.Tensor, masked_features: List[torch.Tensor]) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, features: List[torch.Tensor],
+                masks: List[torch.Tensor] = None) -> torch.Tensor:
         '''
         Forward pass
         :param input: (torch.Tensor) Input latent tensor
-        :param masked_features: (List[torch.Tensor]) List of vgg16 features
+        :param features: (List[torch.Tensor]) List of vgg16 features
         :return: (torch.Tensor) Generated output image
         '''
+        # Make masks if needed
+        if masks is None:
+            masks = misc.get_masks_for_training(device='cpu', add_batch_size=True)
         # Input path
         for index, layer in enumerate(self.input_path):
             if index == 0:
-                output = layer(input, masked_features.pop(-1))
+                # Mask feature
+                feature = features.pop(-1) * masks.pop(-1)
+                output = layer(input, feature)
             elif index == 1:
-                output = layer(output, masked_features.pop(-1))
+                # Mask feature
+                feature = features.pop(-1) * masks.pop(-1)
+                output = layer(output, feature)
             else:
                 output = layer(output)
         # Reshaping
@@ -77,7 +87,11 @@ class Generator(nn.Module):
             if isinstance(layer, SelfAttention):
                 output = layer(output)
             else:
-                output = layer(output, masked_features.pop(-1))
+                # Mask feature and concat mask
+                feature = features.pop(-1)
+                mask = masks.pop(-1)
+                feature = torch.cat((feature * mask, mask), dim=1)
+                output = layer(output, feature)
         # Final block
         output = self.final_block(output)
         return output
@@ -159,6 +173,9 @@ class VGG16(nn.Module):
         :param input: (torch.Tenor) Input tensor of shape (batch size, channels, height, width)
         :return: (List[torch.Tensor]) List of intermediate features in ascending oder w.r.t. the number VGG layer
         '''
+        # Adopt grayscale to rgb if needed
+        if input.shape[1] == 1:
+            input = input.repeat_interleave(3, dim=1)
         # Empty feature activation list
         self.feature_activations = []
         # Call forward pass of vgg 16 to trigger hooks
