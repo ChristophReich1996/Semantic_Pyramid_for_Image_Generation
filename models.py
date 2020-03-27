@@ -23,6 +23,8 @@ class Generator(nn.Module):
         :param channels_factor: (int, float) Channel factor to adopt the channel size in each layer
         '''
         super(Generator, self).__init__()
+        # Save parameters
+        self.latent_dimensions = latent_dimensions
         # Init linear input layers
         self.input_path = nn.ModuleList([
             LinearBlock(in_features=latent_dimensions, out_features=int(128 // channels_factor), feature_size=1000),

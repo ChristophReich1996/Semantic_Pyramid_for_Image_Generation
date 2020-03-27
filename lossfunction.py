@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import torch
 import torch.nn as nn
@@ -9,12 +9,14 @@ class SemanticReconstructionLoss(nn.Module):
     Implementation of the proposed semantic reconstruction loss
     '''
 
-    def __init__(self) -> None:
+    def __init__(self, weight_factor: float = 0.1) -> None:
         '''
         Constructor
         '''
         # Call super constructor
         super(SemanticReconstructionLoss, self).__init__()
+        # Save parameter
+        self.weight_factor = weight_factor
         # Init l1 loss module
         self.l1_loss = nn.L1Loss(reduction='mean')
         # Init max pooling
@@ -41,7 +43,7 @@ class SemanticReconstructionLoss(nn.Module):
             loss = loss + self.l1_loss(feature_real, feature_fake)
         # Average loss with number of features
         loss = loss / len(features_real)
-        return loss
+        return self.weight_factor * loss
 
 
 class DiversityLoss(nn.Module):
@@ -49,12 +51,14 @@ class DiversityLoss(nn.Module):
     Implementation of the mini-batch diversity loss
     '''
 
-    def __init__(self) -> None:
+    def __init__(self, weight_factor: float = 0.1) -> None:
         '''
         Constructor
         '''
         # Call super constructor
         super(DiversityLoss, self).__init__()
+        # Save parameter
+        self.weight_factor = weight_factor
         # Init l1 loss module
         self.l1_loss = nn.L1Loss(reduction='mean')
         # Init epsilon for numeric stability
@@ -78,7 +82,7 @@ class DiversityLoss(nn.Module):
         # Calc loss
         loss = self.l1_loss(latent_inputs_1, latent_inputs_2) / (
                 self.l1_loss(images_fake_1, images_fake_2) + self.epsilon)
-        return loss
+        return self.weight_factor * loss
 
 
 class LSGANGeneratorLoss(nn.Module):
@@ -108,11 +112,11 @@ class LSGANDiscriminatorLoss(nn.Module):
         # Call super constructor
         super(LSGANDiscriminatorLoss, self).__init__()
 
-    def forward(self, images_real: torch.Tensor, images_fake: torch.Tensor) -> torch.Tensor:
+    def forward(self, images_real: torch.Tensor, images_fake: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         '''
-        forward pass
+        Forward pass. Loss parts are not summed up to not retain the whole backward graph later.
         :param images_real: (torch.Tensor) Real images
         :param images_fake: (torch.Tensor) Fake images generated
-        :return: (torch.Tensor) Loss
+        :return: (torch.Tensor) Loss real part and loss fake part
         '''
-        return 0.5 * (torch.mean((images_real - 1) ** 2) + torch.mean(images_fake ** 2))
+        return 0.5 * torch.mean((images_real - 1) ** 2), 0.5 * torch.mean(images_fake ** 2)

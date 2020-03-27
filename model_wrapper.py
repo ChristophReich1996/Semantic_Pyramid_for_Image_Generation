@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from models import VGG16
+from models import VGG16, Generator, Discriminator
 from lossfunction import SemanticReconstructionLoss, DiversityLoss, LSGANGeneratorLoss, LSGANDiscriminatorLoss
 
 
@@ -15,10 +15,10 @@ class ModelWrapper(object):
     '''
 
     def __init__(self,
-                 generator: Union[nn.Module, nn.DataParallel],
-                 discriminator: Union[nn.Module, nn.DataParallel],
+                 generator: Union[Generator, nn.DataParallel],
+                 discriminator: Union[Discriminator, nn.DataParallel],
                  training_dataset: DataLoader,
-                 vgg16: Union[nn.Module, nn.DataParallel] = VGG16(),
+                 vgg16: Union[VGG16, nn.DataParallel] = VGG16(),
                  generator_optimizer: torch.optim.Optimizer = None,
                  discriminator_optimizer: torch.optim.Optimizer = None,
                  generator_loss: nn.Module = LSGANGeneratorLoss(),
@@ -41,6 +41,7 @@ class ModelWrapper(object):
         # Save parameters
         self.generator = generator
         self.discriminator = discriminator
+        self.training_dataset = training_dataset
         self.vgg16 = vgg16
         self.generator_optimizer = generator_optimizer
         self.discriminator_optimizer = discriminator_optimizer
@@ -60,6 +61,53 @@ class ModelWrapper(object):
         self.vgg16.to(device)
         # Init progress bar
         self.progress_bar = tqdm(total=training_iterations)
+        # Init epoch counter
+        epoch_counter = 0
+        # Init IS and FID score
+        IS, FID = 0, 0
+        # Main loop
+        while (self.progress_bar.n < training_iterations):
+            for images_real, masks in self.training_dataset:
+                # Update progress bar with batch size
+                self.progress_bar.update(n=images_real.shape[0])
+                # Reset gradients
+                self.generator.zero_grad()
+                self.discriminator.zero_grad()
+                # Data to device
+                images_real = images_real.to(device)
+                masks = masks.to(device)
+                # Get features of images from vgg16 model
+                with torch.no_grad():
+                    features_real = self.vgg16(images_real)
+                # Generate random noise vector
+                noise_vector = torch.randn((images_real.shape[0], self.generator.latent_dimensions),
+                                           dtype=torch.float32, device=device)
+                # Generate fake images
+                images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
+                # Get discriminator loss
+                loss_discriminator_real, loss_discriminator_fake = self.discriminator_loss(images_real, images_fake)
+                # Calc gradients
+                loss_discriminator_real.backward()
+                loss_discriminator_fake.backward(retain_graph=True)
+                # Optimize discriminator
+                self.discriminator_optimizer.step()
+                # Get generator loss
+                loss_generator = self.generator_loss(images_fake)
+                # Calc gradients
+                loss_generator.backward()
+                # Optimize generator
+                self.generator_optimizer.step()
+                # Show losses in progress bar description
+                self.progress_bar.set_description(
+                    'IS={:.4f}, FID={:.4f}, Loss G={:.4f}, Loss D={:.4f}'.format(IS, FID, loss_generator.item(), (
+                            loss_discriminator_fake + loss_discriminator_real).item()))
+            # Validate model
+            if epoch_counter % validate_after_n_epochs == 0:
+                IS, FID = self.validate()  # IS in upper case cause is is a key word...
+            # Increment epoch counter
+            epoch_counter += 1
+        # Close progress bar
+        self.progress_bar.close()
 
     def validate(self) -> Union[float, float]:
         '''
