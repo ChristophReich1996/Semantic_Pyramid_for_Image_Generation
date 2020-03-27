@@ -3,6 +3,7 @@ from typing import Union
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from models import VGG16
 from lossfunction import SemanticReconstructionLoss, DiversityLoss, LSGANGeneratorLoss, LSGANDiscriminatorLoss
@@ -48,8 +49,17 @@ class ModelWrapper(object):
         self.semantic_reconstruction_loss = semantic_reconstruction_loss
         self.diversity_loss = diversity_loss
 
-    def train(self) -> None:
-        pass
+    def train(self, training_iterations: int = 1000000, validate_after_n_epochs: int = 1, device: str = 'cuda') -> None:
+        # Models into training mode
+        self.generator.train()
+        self.discriminator.train()
+        self.vgg16.train()
+        # Models to device
+        self.generator.to(device)
+        self.discriminator.to(device)
+        self.vgg16.to(device)
+        # Init progress bar
+        self.progress_bar = tqdm(total=training_iterations)
 
     def validate(self) -> Union[float, float]:
         '''
