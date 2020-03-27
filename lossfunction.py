@@ -9,7 +9,7 @@ class SemanticReconstructionLoss(nn.Module):
     Implementation of the proposed semantic reconstruction loss
     '''
 
-    def __init__(self):
+    def __init__(self) -> None:
         '''
         Constructor
         '''
@@ -49,7 +49,7 @@ class DiversityLoss(nn.Module):
     Implementation of the mini-batch diversity loss
     '''
 
-    def __init__(self):
+    def __init__(self) -> None:
         '''
         Constructor
         '''
@@ -86,11 +86,16 @@ class LSGANGeneratorLoss(nn.Module):
     Implementation of the least squares gan loss for the generator network
     '''
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Call super constructor
         super(LSGANGeneratorLoss, self).__init__()
 
     def forward(self, images_fake: torch.Tensor) -> torch.Tensor:
+        '''
+        Forward pass
+        :param images_fake: (torch.Tensor) Fake images generated
+        :return: (torch.Tensor) Loss
+        '''
         return 0.5 * torch.mean((images_fake - 1.0) ** 2)
 
 
@@ -99,9 +104,15 @@ class LSGANDiscriminatorLoss(nn.Module):
     Implementation of the least squares gan loss for the discriminator network
     '''
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Call super constructor
         super(LSGANDiscriminatorLoss, self).__init__()
 
     def forward(self, images_real: torch.Tensor, images_fake: torch.Tensor) -> torch.Tensor:
+        '''
+        forward pass
+        :param images_real: (torch.Tensor) Real images
+        :param images_fake: (torch.Tensor) Fake images generated
+        :return: (torch.Tensor) Loss
+        '''
         return 0.5 * (torch.mean((images_real - 1) ** 2) + torch.mean(images_fake ** 2))
