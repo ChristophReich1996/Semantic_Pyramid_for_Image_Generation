@@ -18,7 +18,7 @@ class Generator(nn.Module):
         Constructor method
         :param output_channels: (int) Number of output channels (1 = grayscale, 3 = rgb)
         :param latent_dimensions: (int) Latent dimension size
-        :param channels_factor: (int, float) Channel factor to adopt the feature size in each layer
+        :param channels_factor: (int, float) Channel factor to adopt the channel size in each layer
         '''
         super(Generator, self).__init__()
         # Init linear input layers
@@ -89,6 +89,11 @@ class Discriminator(nn.Module):
     '''
 
     def __init__(self, in_channels: int = 1, channel_factor: Union[int, float] = 1):
+        '''
+        Constructor mehtod
+        :param in_channels: (int) Number of input channels (grayscale = 1, rgb =3)
+        :param channel_factor: (int, float) Channel factor to adopt the channel size in each layer
+        '''
         # Call super constructor
         super(Discriminator, self).__init__()
         # Init layers
@@ -277,8 +282,9 @@ class LinearBlock(nn.Module):
     def __init__(self, in_features: int, out_features: int, feature_size: int) -> None:
         '''
         Constructor
-        :param in_features:
-        :param out_features:
+        :param in_features: (int) Number of input features
+        :param out_features: (int) Number of output features
+        :param feature_size: (int) Number of channels including in the feature vector
         '''
         # Call super constructor
         super(LinearBlock, self).__init__()
