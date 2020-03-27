@@ -3,7 +3,9 @@ from typing import List, Union
 import torch
 import torch.nn as nn
 from torch.nn.utils import spectral_norm
+import torch.nn.functional as F
 import torchvision
+import math
 
 
 class Generator(nn.Module):
@@ -11,9 +13,11 @@ class Generator(nn.Module):
     Generator network
     '''
 
-    def __init__(self, latent_dimensions: int = 100, channels_factor: Union[int, float] = 1) -> None:
+    def __init__(self, output_channels: int = 1, latent_dimensions: int = 100,
+                 channels_factor: Union[int, float] = 1) -> None:
         '''
         Constructor method
+        :param output_channels: (int) Number of output channels (1 = grayscale, 3 = rgb)
         :param latent_dimensions: (int) Latent dimension size
         :param channels_factor: (int, float) Channel factor to adopt the feature size in each layer
         '''
@@ -34,6 +38,7 @@ class Generator(nn.Module):
                           feature_channels=512),
             ResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(256 // channels_factor),
                           feature_channels=256),
+            SelfAttention(channels=int(256 // channels_factor)),
             ResidualBlock(in_channels=int(256 // channels_factor), out_channels=int(128 // channels_factor),
                           feature_channels=128),
             ResidualBlock(in_channels=int(128 // channels_factor), out_channels=int(64 // channels_factor),
@@ -47,8 +52,8 @@ class Generator(nn.Module):
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
             nn.LeakyReLU(negative_slope=0.2),
             spectral_norm(
-                nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=1, kernel_size=(1, 1), stride=(1, 1),
-                          padding=(0, 0), bias=True))
+                nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=output_channels, kernel_size=(1, 1),
+                          stride=(1, 1), padding=(0, 0), bias=True))
         )
 
     def forward(self, input: torch.Tensor, masked_features: List[torch.Tensor]) -> torch.Tensor:
@@ -70,10 +75,20 @@ class Generator(nn.Module):
         output = output.view(output.shape[0], int(output.shape[1] // (4 ** 2)), 4, 4)
         # Main path
         for layer in self.main_path:
-            output = layer(output, masked_features.pop(-1))
+            if isinstance(layer, SelfAttention):
+                output = layer(output)
+            else:
+                output = layer(output, masked_features.pop(-1))
         # Final block
         output = self.final_block(output)
         return output
+
+
+class Discriminator(nn.Module):
+    '''
+    Discriminator network
+    '''
+    pass
 
 
 class VGG16(nn.Module):
@@ -120,6 +135,60 @@ class VGG16(nn.Module):
         self.vgg16(input)
         # Return activations
         return self.feature_activations
+
+
+class SelfAttention(nn.Module):
+    '''
+    Self attention module proposed in: https://arxiv.org/pdf/1805.08318.pdf.
+    '''
+
+    def __init__(self, channels: int):
+        '''
+        Constructor
+        :param channels: (int) Number of channels to be utilized
+        '''
+        # Call super constructor
+        super(SelfAttention, self).__init__()
+        # Init convolutions
+        self.query_convolution = spectral_norm(
+            nn.Conv2d(in_channels=channels, out_channels=channels // 8, kernel_size=(1, 1), stride=(1, 1),
+                      padding=(0, 0), bias=True))
+        self.key_convolution = spectral_norm(
+            nn.Conv2d(in_channels=channels, out_channels=channels // 8, kernel_size=(1, 1), stride=(1, 1),
+                      padding=(0, 0), bias=True))
+        self.value_convolution = spectral_norm(
+            nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=(1, 1), stride=(1, 1),
+                      padding=(0, 0), bias=True))
+        # Init gamma parameter
+        self.gamma = nn.Parameter(torch.ones(1, dtype=torch.float32))
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        '''
+        Forward pass
+        :param input: (torch.Tensor) Input tensor
+        :return: (torch.Tensor) Output tensor
+        '''
+        # Save input shape
+        batch_size, channels, height, width = input.shape
+        # Mappings
+        query_mapping = self.query_convolution(input)
+        key_mapping = self.key_convolution(input)
+        value_mapping = self.value_convolution(input)
+        # Reshape and transpose query mapping
+        query_mapping = query_mapping.view(batch_size, -1, height * width).permute(0, 2, 1)
+        # Reshape key mapping
+        key_mapping = key_mapping.view(batch_size, -1, height * width)
+        # Calc attention maps
+        attention = F.softmax(torch.bmm(query_mapping, key_mapping), dim=1)
+        # Reshape value mapping
+        value_mapping = value_mapping.view(batch_size, -1, height * width)
+        # Attention features
+        attention_features = torch.bmm(value_mapping, attention)
+        # Reshape to original shape
+        attention_features = attention_features.view(batch_size, channels, height, width)
+        # Residual mapping and gamma multiplication
+        output = self.gamma * attention_features + input
+        return output
 
 
 class ResidualBlock(nn.Module):
@@ -204,3 +273,9 @@ class LinearBlock(nn.Module):
         output = output_main + mapped_features
         return output
 
+
+if __name__ == '__main__':
+    vgg16 = VGG16()
+    generator = Generator()
+    output = generator(torch.rand(1, 100), vgg16(torch.randn(1, 3, 256, 256)))
+    print(output.shape)
