@@ -79,3 +79,29 @@ class DiversityLoss(nn.Module):
         loss = self.l1_loss(latent_inputs_1, latent_inputs_2) / (
                 self.l1_loss(images_fake_1, images_fake_2) + self.epsilon)
         return loss
+
+
+class LSGANGeneratorLoss(nn.Module):
+    '''
+    Implementation of the least squares gan loss for the generator network
+    '''
+
+    def __init__(self):
+        # Call super constructor
+        super(LSGANGeneratorLoss, self).__init__()
+
+    def forward(self, images_fake: torch.Tensor) -> torch.Tensor:
+        return 0.5 * torch.mean((images_fake - 1.0) ** 2)
+
+
+class LSGANDiscriminatorLoss(nn.Module):
+    '''
+    Implementation of the least squares gan loss for the discriminator network
+    '''
+
+    def __init__(self):
+        # Call super constructor
+        super(LSGANDiscriminatorLoss, self).__init__()
+
+    def forward(self, images_real: torch.Tensor, images_fake: torch.Tensor) -> torch.Tensor:
+        return 0.5 * (torch.mean((images_real - 1) ** 2) + torch.mean(images_fake ** 2))
