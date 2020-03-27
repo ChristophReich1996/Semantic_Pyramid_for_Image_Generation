@@ -5,7 +5,6 @@ import torch.nn as nn
 from torch.nn.utils import spectral_norm
 import torch.nn.functional as F
 import torchvision
-import math
 
 
 class Generator(nn.Module):
@@ -88,7 +87,33 @@ class Discriminator(nn.Module):
     '''
     Discriminator network
     '''
-    pass
+
+    def __init__(self, in_channels: int = 1, channel_factor: Union[int, float] = 1):
+        # Call super constructor
+        super(Discriminator, self).__init__()
+        # Init layers
+        self.layers = nn.Sequential(
+            DiscriminatorBlock(in_channels=in_channels, out_channels=int(64 // channel_factor)),
+            DiscriminatorBlock(in_channels=int(64 // channel_factor), out_channels=int(128 // channel_factor)),
+            DiscriminatorBlock(in_channels=int(128 // channel_factor), out_channels=int(256 // channel_factor)),
+            SelfAttention(channels=int(256 // channel_factor)),
+            DiscriminatorBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
+            SelfAttention(channels=int(256 // channel_factor)),
+            DiscriminatorBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
+            spectral_norm(nn.Conv2d(in_channels=int(256 // channel_factor), out_channels=1, kernel_size=(6, 6),
+                                    stride=(4, 4), padding=(0, 0), bias=True)),
+        )
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        '''
+        Forward pass
+        :param input: (torch.Tensor) Input image to be classified, real or fake. Image shape (batch size, 1 or 3, height, width)
+        :return: (torch.Tensor) Output prediction of shape (batch size, 1)
+        '''
+        output = self.layers(input)
+        # Reshape output into two dimensions
+        output = output.view(-1, 1)
+        return output
 
 
 class VGG16(nn.Module):
@@ -142,7 +167,7 @@ class SelfAttention(nn.Module):
     Self attention module proposed in: https://arxiv.org/pdf/1805.08318.pdf.
     '''
 
-    def __init__(self, channels: int):
+    def __init__(self, channels: int) -> None:
         '''
         Constructor
         :param channels: (int) Number of channels to be utilized
@@ -197,6 +222,12 @@ class ResidualBlock(nn.Module):
     '''
 
     def __init__(self, in_channels: int, out_channels: int, feature_channels: int) -> None:
+        '''
+        Constructor
+        :param in_channels: (int) Number of input channels
+        :param out_channels: (int) Number of output channels
+        :param feature_channels: (int) Number of feature channels
+        '''
         # Call super constructor
         super(ResidualBlock, self).__init__()
         # Init main operations
@@ -215,9 +246,10 @@ class ResidualBlock(nn.Module):
         # Init upsampling
         self.upsampling = nn.UpsamplingBilinear2d(scale_factor=2)
         # Init convolution for mapping the masked features
-        self.masked_feature_mapping = spectral_norm(nn.Conv2d(in_channels=feature_channels, out_channels=out_channels,
-                                                              kernel_size=(3, 3), stride=(1, 1), padding=(1, 1),
-                                                              bias=True))
+        self.masked_feature_mapping = spectral_norm(
+            nn.Conv2d(in_channels=feature_channels, out_channels=out_channels,
+                      kernel_size=(3, 3), stride=(1, 1), padding=(1, 1),
+                      bias=True))
 
     def forward(self, input: torch.Tensor, masked_features: torch.Tensor) -> torch.Tensor:
         '''
@@ -274,8 +306,24 @@ class LinearBlock(nn.Module):
         return output
 
 
-if __name__ == '__main__':
-    vgg16 = VGG16()
-    generator = Generator()
-    output = generator(torch.rand(1, 100), vgg16(torch.randn(1, 3, 256, 256)))
-    print(output.shape)
+class DiscriminatorBlock(nn.Module):
+
+    def __init__(self, in_channels: int, out_channels: int) -> None:
+        # Call super constructor
+        super(DiscriminatorBlock, self).__init__()
+        # Init convolution and activation
+        self.block = nn.Sequential(
+            spectral_norm(
+                nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(4, 4), stride=(2, 2),
+                          padding=(1, 1))),
+            nn.LeakyReLU(negative_slope=0.2)
+        )
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        '''
+        Forward pass
+        :param input: (torch.Tensor) Input tensor of shape (batch size, in channels, height, width)
+        :return: (torch.Tensor) Output tensor of shape (batch size, in channels, height / 2, width / 2)
+        '''
+        output = self.block(input)
+        return output
