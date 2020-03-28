@@ -68,8 +68,6 @@ class TinyImageNet(Dataset):
             for file in files:
                 if image_format in file.lower():
                     self.files.append(os.path.join(root, file))
-        print(len(self.files))
-        exit(22)
 
     def __len__(self) -> int:
         '''
@@ -91,8 +89,6 @@ class TinyImageNet(Dataset):
         # Reshape image
         image = F.interpolate(image.unsqueeze(dim=0), size=self.resolution, mode='bilinear',
                               align_corners=False).squeeze(dim=0)
-        # Normalize image
-        image.sub_(image.mean()).div_(image.std())
         # Add rgb channels if needed
         if image.shape[0] == 1:
             image = image.repeat_interleave(repeats=3, dim=0)
