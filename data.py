@@ -51,17 +51,25 @@ class TinyImageNet(Dataset):
     Implementation of the tiny image net dataset
     '''
 
-    def __init__(self, path: str = '', resolution: Tuple[int, int] = (256, 256)) -> None:
+    def __init__(self, path: str = '', resolution: Tuple[int, int] = (256, 256), image_format: str = 'jpeg') -> None:
         '''
         Constructor
         :param path: (str) Path to images
         :param resolution: (Tuple[int, int]) Desired resolution
+        :param image_format: (str) Image file format to detect in path
         '''
         # Save parameter
         self.resolution = resolution
         self.path = path
-        # Detect and save all image names
-        self.files = os.listdir(self.path)
+        # Detect all images in path and subdirectories
+        image_format = image_format.lower()
+        self.files = []
+        for root, dirs, files in os.walk(self.path):
+            for file in files:
+                if image_format in file.lower():
+                    self.files.append(os.path.join(root, file))
+        print(len(self.files))
+        exit(22)
 
     def __len__(self) -> int:
         '''
