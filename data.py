@@ -89,6 +89,8 @@ class TinyImageNet(Dataset):
         # Reshape image
         image = F.interpolate(image.unsqueeze(dim=0), size=self.resolution, mode='bilinear',
                               align_corners=False).squeeze(dim=0)
+        # Normalize image to a range of 0 to 1
+        image.sub_(image.min()).div_(image.max() - image.min())
         # Add rgb channels if needed
         if image.shape[0] == 1:
             image = image.repeat_interleave(repeats=3, dim=0)

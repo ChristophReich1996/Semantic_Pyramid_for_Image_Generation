@@ -83,7 +83,7 @@ class ModelWrapper(object):
         # Generate latents for validation
         self.validation_latents = torch.randn(49, self.latent_dimensions, dtype=torch.float32)
 
-    def train(self, training_iterations: int = 1000000, validate_after_n_epochs: int = 1, device: str = 'cuda') -> None:
+    def train(self, training_iterations: int = 10000, validate_after_n_epochs: int = 1, device: str = 'cuda') -> None:
         # Models into training mode
         self.generator.train()
         self.discriminator.train()
@@ -95,8 +95,6 @@ class ModelWrapper(object):
         self.vgg16.to(device)
         # Init progress bar
         self.progress_bar = tqdm(total=training_iterations)
-        self.validate(device=device)
-        exit(22)
         # Init epoch counter
         epoch_counter = 0
         # Init IS and FID score
@@ -181,6 +179,8 @@ class ModelWrapper(object):
         # Save images
         torchvision.utils.save_image(fake_image, os.path.join(self.path_save_plots, str(self.progress_bar.n) + '.png'),
                                      nrow=7)
+        # Generator back into train mode
+        self.generator.train()
         return 0.0, 0.0
 
     def inference(self) -> torch.Tensor:
