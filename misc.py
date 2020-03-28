@@ -9,7 +9,7 @@ from skimage.draw import random_shapes
 def get_masks_for_training(
         mask_shapes: List[Tuple] =
         [(64, 128, 128), (128, 64, 64), (256, 32, 32), (512, 16, 16), (512, 8, 8), (4096,), (1000,)],
-        device: str = 'cuda', add_batch_size: bool = False,
+        device: str = 'cpu', add_batch_size: bool = False,
         p_layers: List[float] = [0.25, 0.2, 0.15, 0.1, 0.1, 0.1, 0.1],
         p_random_mask: float = 0.3) -> List[torch.Tensor]:
     '''

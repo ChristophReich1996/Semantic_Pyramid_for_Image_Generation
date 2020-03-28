@@ -42,3 +42,26 @@ class PseudoDataset(Dataset):
         else:
             # Generate and return pseudo data
             return torch.randn(self.image_size), misc.get_masks_for_training()
+
+
+def tensor_list_of_masks_collate_function(batch: List[Tuple[torch.Tensor, List[torch.Tensor]]]) -> Tuple[
+    torch.Tensor, List[torch.Tensor]]:
+    '''
+    Function batches a list of given samples. Each samples contains an image and a list of masks
+    :param batch: (List[Tuple[torch.Tensor, List[torch.Tensor]]]) List of samples
+    :return: (Tuple[torch.Tensor, List[torch.Tensor]]) Batched samples
+    '''
+    # Batching images
+    images = torch.stack([instance[0] for instance in batch], dim=0)
+    # Set requires grad
+    images.requires_grad = True
+    # Batching masks by iterating over all masks
+    masks = []
+    for mask_index in range(len(batch[0][1])):
+        # Make batch
+        mask = torch.stack([batch[batch_index][1][mask_index] for batch_index in range(len(batch))], dim=0)
+        # Set requires grad
+        mask.requires_grad = True
+        # Save batched mask in list
+        masks.append(mask)
+    return images, masks

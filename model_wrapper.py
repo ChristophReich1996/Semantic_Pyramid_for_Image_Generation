@@ -75,13 +75,14 @@ class ModelWrapper(object):
                 self.discriminator.zero_grad()
                 # Data to device
                 images_real = images_real.to(device)
-                masks = masks.to(device)
+                for index in range(len(masks)):
+                    masks[index].to(device)
                 # Get features of images from vgg16 model
                 with torch.no_grad():
                     features_real = self.vgg16(images_real)
                 # Generate random noise vector
                 noise_vector = torch.randn((images_real.shape[0], self.generator.latent_dimensions),
-                                           dtype=torch.float32, device=device)
+                                           dtype=torch.float32, device=device, requires_grad=True)
                 # Generate fake images
                 images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
                 # Get discriminator loss
@@ -114,7 +115,27 @@ class ModelWrapper(object):
         IS and FID score gets estimated
         :return: (float, float) IS and FID score
         '''
-        pass
+        return 0.0, 0.0
 
     def inference(self) -> torch.Tensor:
         pass
+
+
+# Testing
+if __name__ == '__main__':
+    import data
+    from torch.utils.data import DataLoader
+
+    # Init models, optimizers and dataset
+    generator = Generator()
+    discriminator = Discriminator()
+    generator_optimizer = torch.optim.Adam(generator.parameters())
+    discriminator_optimizer = torch.optim.Adam(discriminator.parameters())
+    training_dataset = DataLoader(data.PseudoDataset(length=10), batch_size=2,
+                                  collate_fn=data.tensor_list_of_masks_collate_function)
+    # Init model wrapper
+    model_wrapper = ModelWrapper(generator=generator, discriminator=discriminator, training_dataset=training_dataset,
+                                 generator_optimizer=generator_optimizer,
+                                 discriminator_optimizer=discriminator_optimizer)
+    # Perform training
+    model_wrapper.train(training_iterations=100, device='cpu')

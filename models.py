@@ -67,9 +67,6 @@ class Generator(nn.Module):
         :param features: (List[torch.Tensor]) List of vgg16 features
         :return: (torch.Tensor) Generated output image
         '''
-        # Make masks if needed
-        if masks is None:
-            masks = misc.get_masks_for_training(device='cpu', add_batch_size=True)
         # Input path
         for index, layer in enumerate(self.input_path):
             if index == 0:
@@ -166,6 +163,8 @@ class VGG16(nn.Module):
         :param input: (torch.Tensor) Unused parameter
         :param output: (torch.Tensor) Output tensor of the called module
         '''
+        # Set requires grad for later to true
+        output.requires_grad = True
         # Save activation in list
         self.feature_activations.append(output)
 
