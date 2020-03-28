@@ -14,11 +14,11 @@ class Generator(nn.Module):
     Generator network
     '''
 
-    def __init__(self, output_channels: int = 1, latent_dimensions: int = 100,
+    def __init__(self, out_channels: int = 3, latent_dimensions: int = 100,
                  channels_factor: Union[int, float] = 1) -> None:
         '''
         Constructor method
-        :param output_channels: (int) Number of output channels (1 = grayscale, 3 = rgb)
+        :param out_channels: (int) Number of output channels (1 = grayscale, 3 = rgb)
         :param latent_dimensions: (int) Latent dimension size
         :param channels_factor: (int, float) Channel factor to adopt the channel size in each layer
         '''
@@ -30,7 +30,7 @@ class Generator(nn.Module):
             LinearBlock(in_features=latent_dimensions, out_features=int(128 // channels_factor), feature_size=1000),
             LinearBlock(in_features=int(128 // channels_factor), out_features=int(128 // channels_factor),
                         feature_size=4096),
-            nn.Linear(in_features=int(128 // channels_factor), out_features=512 * 4 * 4),
+            nn.Linear(in_features=int(128 // channels_factor), out_features=int(512 // channels_factor) * 4 * 4),
             nn.LeakyReLU(negative_slope=0.2)
         ])
         # Init main residual path
@@ -55,7 +55,7 @@ class Generator(nn.Module):
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
             nn.LeakyReLU(negative_slope=0.2),
             spectral_norm(
-                nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=output_channels, kernel_size=(1, 1),
+                nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=out_channels, kernel_size=(1, 1),
                           stride=(1, 1), padding=(0, 0), bias=True))
         )
 
@@ -106,7 +106,7 @@ class Discriminator(nn.Module):
     Discriminator network
     '''
 
-    def __init__(self, in_channels: int = 1, channel_factor: Union[int, float] = 1):
+    def __init__(self, in_channels: int = 3, channel_factor: Union[int, float] = 1):
         '''
         Constructor mehtod
         :param in_channels: (int) Number of input channels (grayscale = 1, rgb =3)
@@ -152,7 +152,7 @@ class VGG16(nn.Module):
         # Call super constructor
         super(VGG16, self).__init__()
         # Load model from torchvision
-        self.vgg16 = torchvision.models.vgg16(pretrained=True)
+        self.vgg16 = torchvision.models.vgg16(pretrained=pretrained)
         # Init forward hooks of feature module
         for layer in self.vgg16.features:
             if isinstance(layer, nn.MaxPool2d):

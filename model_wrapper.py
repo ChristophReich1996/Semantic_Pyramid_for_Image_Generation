@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from models import VGG16, Generator, Discriminator
 from lossfunction import SemanticReconstructionLoss, DiversityLoss, LSGANGeneratorLoss, LSGANDiscriminatorLoss
@@ -49,6 +50,8 @@ class ModelWrapper(object):
         self.discriminator_loss = discriminator_loss
         self.semantic_reconstruction_loss = semantic_reconstruction_loss
         self.diversity_loss = diversity_loss
+        self.latent_dimensions = self.generator.module.latent_dimensions \
+            if isinstance(self.generator, nn.DataParallel) else  self.generator.latent_dimensions
 
     def train(self, training_iterations: int = 1000000, validate_after_n_epochs: int = 1, device: str = 'cuda') -> None:
         # Models into training mode
@@ -76,12 +79,12 @@ class ModelWrapper(object):
                 # Data to device
                 images_real = images_real.to(device)
                 for index in range(len(masks)):
-                    masks[index].to(device)
+                    masks[index] = masks[index].to(device)
                 # Get features of images from vgg16 model
                 with torch.no_grad():
                     features_real = self.vgg16(images_real)
                 # Generate random noise vector
-                noise_vector = torch.randn((images_real.shape[0], self.generator.latent_dimensions),
+                noise_vector = torch.randn((images_real.shape[0], self.latent_dimensions),
                                            dtype=torch.float32, device=device, requires_grad=True)
                 # Generate fake images
                 images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
@@ -113,6 +116,8 @@ class ModelWrapper(object):
                 self.progress_bar.set_description(
                     'IS={:.4f}, FID={:.4f}, Loss G={:.4f}, Loss D={:.4f}'.format(IS, FID, loss_generator.item(), (
                             loss_discriminator_fake + loss_discriminator_real).item()))
+            plt.imshow(images_fake[0].detach().cpu().permute(1, 2, 0))
+            plt.show()
             # Validate model
             if epoch_counter % validate_after_n_epochs == 0:
                 IS, FID = self.validate()  # IS in upper case cause is is a key word...
@@ -130,23 +135,3 @@ class ModelWrapper(object):
 
     def inference(self) -> torch.Tensor:
         pass
-
-
-# Testing
-if __name__ == '__main__':
-    import data
-    from torch.utils.data import DataLoader
-
-    # Init models, optimizers and dataset
-    generator = Generator()
-    discriminator = Discriminator()
-    generator_optimizer = torch.optim.Adam(generator.parameters())
-    discriminator_optimizer = torch.optim.Adam(discriminator.parameters())
-    training_dataset = DataLoader(data.PseudoDataset(length=10), batch_size=2,
-                                  collate_fn=data.tensor_list_of_masks_collate_function)
-    # Init model wrapper
-    model_wrapper = ModelWrapper(generator=generator, discriminator=discriminator, training_dataset=training_dataset,
-                                 generator_optimizer=generator_optimizer,
-                                 discriminator_optimizer=discriminator_optimizer)
-    # Perform training
-    model_wrapper.train(training_iterations=100, device='cpu')
