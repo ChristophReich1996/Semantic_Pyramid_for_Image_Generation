@@ -89,13 +89,24 @@ class ModelWrapper(object):
                 loss_discriminator_real, loss_discriminator_fake = self.discriminator_loss(images_real, images_fake)
                 # Calc gradients
                 loss_discriminator_real.backward()
-                loss_discriminator_fake.backward(retain_graph=True)
+                loss_discriminator_fake.backward()
                 # Optimize discriminator
                 self.discriminator_optimizer.step()
+                # Generate new fake images
+                images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
                 # Get generator loss
                 loss_generator = self.generator_loss(images_fake)
+                # Get diversity loss
+                loss_generator_diversity = self.diversity_loss(images_fake, noise_vector)
+                # Get features of fake images
+                features_fake = self.vgg16(images_fake)
+                # Calc semantic reconstruction loss
+                loss_generator_semantic_reconstruction = self.semantic_reconstruction_loss(features_real, features_fake)
+                # Calc complied loss
+                loss_generator_complied = loss_generator + loss_generator_diversity + \
+                                          loss_generator_semantic_reconstruction
                 # Calc gradients
-                loss_generator.backward()
+                loss_generator_complied.backward()
                 # Optimize generator
                 self.generator_optimizer.step()
                 # Show losses in progress bar description

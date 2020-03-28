@@ -67,16 +67,20 @@ class Generator(nn.Module):
         :param features: (List[torch.Tensor]) List of vgg16 features
         :return: (torch.Tensor) Generated output image
         '''
+        # Init depth counter
+        depth_counter = len(features) - 1
         # Input path
         for index, layer in enumerate(self.input_path):
             if index == 0:
                 # Mask feature
-                feature = features.pop(-1) * masks.pop(-1)
+                feature = features[depth_counter] * masks[depth_counter]
                 output = layer(input, feature)
+                depth_counter -= 1
             elif index == 1:
                 # Mask feature
-                feature = features.pop(-1) * masks.pop(-1)
+                feature = features[depth_counter] * masks[depth_counter]
                 output = layer(output, feature)
+                depth_counter -= 1
             else:
                 output = layer(output)
         # Reshaping
@@ -87,10 +91,11 @@ class Generator(nn.Module):
                 output = layer(output)
             else:
                 # Mask feature and concat mask
-                feature = features.pop(-1)
-                mask = masks.pop(-1)
+                feature = features[depth_counter]
+                mask = masks[depth_counter]
                 feature = torch.cat((feature * mask, mask), dim=1)
                 output = layer(output, feature)
+                depth_counter -= 1
         # Final block
         output = self.final_block(output)
         return output
@@ -163,8 +168,6 @@ class VGG16(nn.Module):
         :param input: (torch.Tensor) Unused parameter
         :param output: (torch.Tensor) Output tensor of the called module
         '''
-        # Set requires grad for later to true
-        output.requires_grad = True
         # Save activation in list
         self.feature_activations.append(output)
 

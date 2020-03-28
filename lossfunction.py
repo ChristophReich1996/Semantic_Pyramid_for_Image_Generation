@@ -19,8 +19,9 @@ class SemanticReconstructionLoss(nn.Module):
         self.weight_factor = weight_factor
         # Init l1 loss module
         self.l1_loss = nn.L1Loss(reduction='mean')
-        # Init max pooling
-        self.max_pooling = nn.MaxPool2d(2)
+        # Init max pooling operations. Since the features have various dimensions, 2d & 1d max pool as the be init
+        self.max_pooling_2d = nn.MaxPool2d(2)
+        self.max_pooling_1d = nn.MaxPool1d(2)
 
     def forward(self, features_real: List[torch.Tensor], features_fake: List[torch.Tensor]) -> torch.Tensor:
         '''
@@ -34,8 +35,12 @@ class SemanticReconstructionLoss(nn.Module):
         # Calc full loss
         for feature_real, feature_fake in zip(features_real, features_fake):
             # Downscale features
-            feature_real = self.max_pooling(feature_real)
-            feature_fake = self.max_pooling(feature_fake)
+            if len(feature_fake.shape) == 4:
+                feature_real = self.max_pooling_2d(feature_real)
+                feature_fake = self.max_pooling_2d(feature_fake)
+            else:
+                feature_real = self.max_pooling_1d(feature_real.unsqueeze(dim=1))
+                feature_fake = self.max_pooling_1d(feature_fake.unsqueeze(dim=1))
             # Normalize features
             feature_real = (feature_real - feature_real.mean()) / feature_real.std()
             feature_fake = (feature_fake - feature_fake.mean()) / feature_fake.std()
