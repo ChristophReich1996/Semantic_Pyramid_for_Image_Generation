@@ -153,23 +153,10 @@ class VGG16(nn.Module):
         super(VGG16, self).__init__()
         # Load model from torchvision
         self.vgg16 = torchvision.models.vgg16(pretrained=pretrained)
-        # Init forward hooks of feature module
-        for layer in self.vgg16.features:
-            if isinstance(layer, nn.MaxPool2d):
-                layer.register_forward_hook(self.store_activation)
-        # Init forward nooks for fully connected layers
-        self.vgg16.classifier[3].register_forward_hook(self.store_activation)
-        self.vgg16.classifier[6].register_forward_hook(self.store_activation)
-
-    def store_activation(self, module: nn.Module, input: torch.Tensor, output: torch.Tensor) -> None:
-        '''
-        Hook method to save output activation
-        :param module: (nn.Module) Unused parameter
-        :param input: (torch.Tensor) Unused parameter
-        :param output: (torch.Tensor) Output tensor of the called module
-        '''
-        # Save activation in list
-        self.feature_activations.append(output)
+        # Convert feature module into model list
+        self.vgg16.features = nn.ModuleList(list(self.vgg16.features))
+        # Convert classifier into module list
+        self.vgg16.classifier = nn.ModuleList(list(self.vgg16.classifier))
 
     def forward(self, input: torch.Tensor) -> List[torch.Tensor]:
         '''
@@ -179,13 +166,26 @@ class VGG16(nn.Module):
         '''
         # Adopt grayscale to rgb if needed
         if input.shape[1] == 1:
-            input = input.repeat_interleave(3, dim=1)
-        # Empty feature activation list
-        self.feature_activations = []
-        # Call forward pass of vgg 16 to trigger hooks
-        self.vgg16(input)
-        # Return activations
-        return self.feature_activations
+            output = input.repeat_interleave(3, dim=1)
+        else:
+            output = input
+        # Init list for features
+        features = []
+        # Feature path
+        for layer in self.vgg16.features:
+            output = layer(output)
+            if isinstance(layer, nn.MaxPool2d):
+                features.append(output)
+        # Average pool operation
+        output = self.vgg16.avgpool(output)
+        # Flatten tensor
+        output = output.flatten(start_dim=1)
+        # Classification path
+        for index, layer in enumerate(self.vgg16.classifier):
+            output = layer(output)
+            if index == 3 or index == 6:
+                features.append(output)
+        return features
 
 
 class SelfAttention(nn.Module):
