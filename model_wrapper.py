@@ -119,8 +119,12 @@ class ModelWrapper(object):
                                            dtype=torch.float32, device=device, requires_grad=True)
                 # Generate fake images
                 images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
+                # Discriminator prediction real
+                prediction_real = self.discriminator(images_real)
+                # Discriminator prediction fake
+                prediction_fake = self.discriminator(images_fake)
                 # Get discriminator loss
-                loss_discriminator_real, loss_discriminator_fake = self.discriminator_loss(images_real, images_fake)
+                loss_discriminator_real, loss_discriminator_fake = self.discriminator_loss(prediction_real, prediction_fake)
                 # Calc gradients
                 loss_discriminator_real.backward()
                 loss_discriminator_fake.backward()
@@ -128,8 +132,10 @@ class ModelWrapper(object):
                 self.discriminator_optimizer.step()
                 # Generate new fake images
                 images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
+                # Discriminator prediction fake
+                prediction_fake = self.discriminator(images_fake)
                 # Get generator loss
-                loss_generator = self.generator_loss(images_fake)
+                loss_generator = self.generator_loss(prediction_fake)
                 # Get diversity loss
                 loss_generator_diversity = self.diversity_loss(images_fake, noise_vector)
                 # Get features of fake images
@@ -145,10 +151,9 @@ class ModelWrapper(object):
                 self.generator_optimizer.step()
                 # Show losses in progress bar description
                 self.progress_bar.set_description(
-                    'IS={:.4f}, FID={:.4f}, Loss G={:.4f}, Loss D={:.4f}'.format(IS, FID, loss_generator.item(), (
-                            loss_discriminator_fake + loss_discriminator_real).item()))
-            plt.imshow(images_fake[0].detach().cpu().permute(1, 2, 0))
-            plt.show()
+                    'Loss Div={:.4f}, Loss Rec={:.4f}, Loss G={:.4f}, Loss D={:.4f}'.format(
+                        loss_generator_diversity.item(), loss_generator_semantic_reconstruction.item(),
+                        loss_generator.item(), (loss_discriminator_fake + loss_discriminator_real).item()))
             # Validate model
             if epoch_counter % validate_after_n_epochs == 0:
                 IS, FID = self.validate(device=device)  # IS in upper case cause is is a key word...

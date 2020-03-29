@@ -20,16 +20,16 @@ if __name__ == '__main__':
 
     # Init optimizers
     generator_optimizer = torch.optim.Adam(generator.parameters(), lr=0.0001)
-    discriminator_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.0001)
+    discriminator_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.0002)
     # Init dataset
     training_dataset = DataLoader(data.TinyImageNet(path='/home/creich/tiny-image-net/tiny-imagenet-200/train'),
-                                  batch_size=90, num_workers=90, shuffle=True,
+                                  batch_size=120, num_workers=120, shuffle=True,
                                   collate_fn=data.tensor_list_of_masks_collate_function)
     validation_dataset = DataLoader(data.TinyImageNet(path='/home/creich/tiny-image-net/tiny-imagenet-200/val'),
-                                    batch_size=90, num_workers=90, shuffle=True,
+                                    batch_size=120, num_workers=120, shuffle=True,
                                     collate_fn=data.tensor_list_of_masks_collate_function)
     test_dataset = DataLoader(data.TinyImageNet(path='/home/creich/tiny-image-net/tiny-imagenet-200/test'),
-                              batch_size=90, num_workers=90, shuffle=True,
+                              batch_size=120, num_workers=120, shuffle=True,
                               collate_fn=data.tensor_list_of_masks_collate_function)
     # Init model wrapper
     model_wrapper = ModelWrapper(generator=generator,
