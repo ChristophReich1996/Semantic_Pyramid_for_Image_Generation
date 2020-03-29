@@ -17,35 +17,38 @@ class SemanticReconstructionLoss(nn.Module):
         super(SemanticReconstructionLoss, self).__init__()
         # Save parameter
         self.weight_factor = weight_factor
-        # Init l1 loss module
-        self.l1_loss = nn.L1Loss(reduction='mean')
         # Init max pooling operations. Since the features have various dimensions, 2d & 1d max pool as the be init
         self.max_pooling_2d = nn.MaxPool2d(2)
         self.max_pooling_1d = nn.MaxPool1d(2)
 
-    def forward(self, features_real: List[torch.Tensor], features_fake: List[torch.Tensor]) -> torch.Tensor:
+    def forward(self, features_real: List[torch.Tensor], features_fake: List[torch.Tensor],
+                masks: List[torch.Tensor]) -> torch.Tensor:
         '''
         Forward pass
         :param features_real: (List[torch.Tensor]) List of real features
         :param features_fake: (List[torch.Tensor]) List of fake features
         :return: (torch.Tensor) Loss
         '''
+        # Check lengths
+        assert len(features_real) == len(features_fake) == len(masks)
         # Init loss
         loss = torch.tensor([0.0], dtype=torch.float32, device=features_real[0].device)
         # Calc full loss
-        for feature_real, feature_fake in zip(features_real, features_fake):
+        for feature_real, feature_fake, mask in zip(features_real, features_fake, masks):
             # Downscale features
             if len(feature_fake.shape) == 4:
                 feature_real = self.max_pooling_2d(feature_real)
                 feature_fake = self.max_pooling_2d(feature_fake)
+                mask = self.max_pooling_2d(mask)
             else:
                 feature_real = self.max_pooling_1d(feature_real.unsqueeze(dim=1))
                 feature_fake = self.max_pooling_1d(feature_fake.unsqueeze(dim=1))
+                mask = self.max_pooling_1d(mask.unsqueeze(dim=1))
             # Normalize features
             feature_real = (feature_real - feature_real.mean()) / feature_real.std()
             feature_fake = (feature_fake - feature_fake.mean()) / feature_fake.std()
-            # Calc l1 loss of the real and fake feature
-            loss = loss + self.l1_loss(feature_real, feature_fake)
+            # Calc l1 loss of the real and fake feature conditionalized by the corresponding mask
+            loss = loss + torch.mean(torch.abs((feature_real - feature_fake) * mask))
         # Average loss with number of features
         loss = loss / len(features_real)
         return self.weight_factor * loss

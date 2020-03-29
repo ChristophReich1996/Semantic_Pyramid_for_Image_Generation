@@ -80,6 +80,10 @@ class ModelWrapper(object):
             [self.validation_dataset.dataset[index] for index in validation_plot_indexes])
         torchvision.utils.save_image(self.validation_images_to_plot, os.path.join(self.path_save_plots,
                                                                                   'validation_images.png'), nrow=7)
+        # Plot masks
+        torchvision.utils.save_image(self.validation_masks[0],
+                                     os.path.join(self.path_save_plots, 'validation_masks.png'),
+                                     nrow=7)
         # Generate latents for validation
         self.validation_latents = torch.randn(49, self.latent_dimensions, dtype=torch.float32)
 
@@ -124,7 +128,8 @@ class ModelWrapper(object):
                 # Discriminator prediction fake
                 prediction_fake = self.discriminator(images_fake)
                 # Get discriminator loss
-                loss_discriminator_real, loss_discriminator_fake = self.discriminator_loss(prediction_real, prediction_fake)
+                loss_discriminator_real, loss_discriminator_fake = self.discriminator_loss(prediction_real,
+                                                                                           prediction_fake)
                 # Calc gradients
                 loss_discriminator_real.backward()
                 loss_discriminator_fake.backward()
@@ -141,7 +146,8 @@ class ModelWrapper(object):
                 # Get features of fake images
                 features_fake = self.vgg16(images_fake)
                 # Calc semantic reconstruction loss
-                loss_generator_semantic_reconstruction = self.semantic_reconstruction_loss(features_real, features_fake)
+                loss_generator_semantic_reconstruction = \
+                    self.semantic_reconstruction_loss(features_real, features_fake, masks)
                 # Calc complied loss
                 loss_generator_complied = loss_generator + loss_generator_diversity + \
                                           loss_generator_semantic_reconstruction
