@@ -12,7 +12,7 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '0, 2, 3'
 
     # Init models, optimizers and dataset
-    generator = nn.DataParallel(Generator(channels_factor=2))
+    generator = nn.DataParallel(Generator())
     print('Number of generator parameters', sum(p.numel() for p in generator.parameters()))
     discriminator = nn.DataParallel(Discriminator())
     print('Number of discriminator parameters', sum(p.numel() for p in discriminator.parameters()))
@@ -23,11 +23,11 @@ if __name__ == '__main__':
     # Init dataset
     training_dataset = DataLoader(
         data.Places365(path_to_index_file='/home/creich/places365_standard', index_file_name='train.txt'),
-        batch_size=90, num_workers=90, shuffle=True,
+        batch_size=60, num_workers=60, shuffle=True,
         collate_fn=data.image_label_list_of_masks_collate_function)
     validation_dataset = DataLoader(
         data.Places365(path_to_index_file='/home/creich/places365_standard', index_file_name='train.txt'),
-        batch_size=90, num_workers=90, shuffle=True,
+        batch_size=60, num_workers=60, shuffle=False,
         collate_fn=data.image_label_list_of_masks_collate_function)
     # Init model wrapper
     model_wrapper = ModelWrapper(generator=generator,
@@ -38,4 +38,4 @@ if __name__ == '__main__':
                                  generator_optimizer=generator_optimizer,
                                  discriminator_optimizer=discriminator_optimizer)
     # Perform training
-    model_wrapper.train(epochs=2, device='cuda')
+    model_wrapper.train(epochs=100, device='cuda')

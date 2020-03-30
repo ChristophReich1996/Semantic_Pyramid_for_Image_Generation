@@ -85,7 +85,11 @@ class ModelWrapper(object):
         # Generate latents for validation
         self.validation_latents = torch.randn(49, self.latent_dimensions, dtype=torch.float32)
 
-    def train(self, epochs: int = 20, validate_after_n_iterations: int = 10000, device: str = 'cuda') -> None:
+    def train(self, epochs: int = 20, validate_after_n_iterations: int = 10000, device: str = 'cuda',
+              save_model_after_n_epochs: int = 10) -> None:
+        # Adopt to batch size
+        validate_after_n_iterations = (validate_after_n_iterations // self.training_dataset.batch_size) \
+                                      * self.training_dataset.batch_size
         # Models into training mode
         self.generator.train()
         self.discriminator.train()
@@ -98,7 +102,6 @@ class ModelWrapper(object):
         # Init progress bar
         self.progress_bar = tqdm(total=epochs * len(self.training_dataset), dynamic_ncols=True)
         # Init epoch counter
-        epoch_counter = 0
         # Init IS and FID score
         IS, FID = 0, 0
         # Main loop
@@ -160,10 +163,12 @@ class ModelWrapper(object):
                         loss_generator_diversity.item(), loss_generator_semantic_reconstruction.item(),
                         loss_generator.item(), (loss_discriminator_fake + loss_discriminator_real).item()))
                 # Validate model
-                if epoch_counter % validate_after_n_iterations == 0:
+                if self.progress_bar.n % validate_after_n_iterations == 0:
+                    print('Val')
                     IS, FID = self.validate(device=device)  # IS in upper case cause is is a key word...
-            # Increment epoch counter
-            epoch_counter += 1
+            if epoch % save_model_after_n_epochs == 0:
+                torch.save(self.generator, os.path.join(self.path_save_models, 'generator_{}.pt'.format(epoch)))
+                torch.save(self.discriminator, os.path.join(self.path_save_models, 'discriminator_{}.pt'.format(epoch)))
         # Close progress bar
         self.progress_bar.close()
 
