@@ -164,7 +164,6 @@ class ModelWrapper(object):
                         loss_generator.item(), (loss_discriminator_fake + loss_discriminator_real).item()))
                 # Validate model
                 if self.progress_bar.n % validate_after_n_iterations == 0:
-                    print('Val')
                     IS, FID = self.validate(device=device)  # IS in upper case cause is is a key word...
             if epoch % save_model_after_n_epochs == 0:
                 torch.save(self.generator, os.path.join(self.path_save_models, 'generator_{}.pt'.format(epoch)))
