@@ -12,7 +12,7 @@ import os
 
 from models import VGG16, Generator, Discriminator
 from lossfunction import SemanticReconstructionLoss, DiversityLoss, LSGANGeneratorLoss, LSGANDiscriminatorLoss
-from data import tensor_list_of_masks_collate_function
+from data import image_label_list_of_masks_collate_function
 
 
 class ModelWrapper(object):
@@ -25,7 +25,6 @@ class ModelWrapper(object):
                  discriminator: Union[Discriminator, nn.DataParallel],
                  training_dataset: DataLoader,
                  validation_dataset: DataLoader,
-                 test_dataset: DataLoader,
                  vgg16: Union[VGG16, nn.DataParallel] = VGG16(),
                  generator_optimizer: torch.optim.Optimizer = None,
                  discriminator_optimizer: torch.optim.Optimizer = None,
@@ -52,7 +51,6 @@ class ModelWrapper(object):
         self.discriminator = discriminator
         self.training_dataset = training_dataset
         self.validation_dataset = validation_dataset
-        self.test_dataset = test_dataset
         self.vgg16 = vgg16
         self.generator_optimizer = generator_optimizer
         self.discriminator_optimizer = discriminator_optimizer
@@ -76,7 +74,7 @@ class ModelWrapper(object):
         # Make indexes for validation plots
         validation_plot_indexes = np.random.choice(range(len(self.validation_dataset)), 49, replace=False)
         # Plot and save validation images used to plot generated images
-        self.validation_images_to_plot, self.validation_masks = tensor_list_of_masks_collate_function(
+        self.validation_images_to_plot, _, self.validation_masks = image_label_list_of_masks_collate_function(
             [self.validation_dataset.dataset[index] for index in validation_plot_indexes])
         torchvision.utils.save_image(self.validation_images_to_plot, os.path.join(self.path_save_plots,
                                                                                   'validation_images.png'), nrow=7)
@@ -87,7 +85,7 @@ class ModelWrapper(object):
         # Generate latents for validation
         self.validation_latents = torch.randn(49, self.latent_dimensions, dtype=torch.float32)
 
-    def train(self, training_iterations: int = 10000, validate_after_n_epochs: int = 1, device: str = 'cuda') -> None:
+    def train(self, epochs: int = 20, validate_after_n_iterations: int = 10000, device: str = 'cuda') -> None:
         # Models into training mode
         self.generator.train()
         self.discriminator.train()
@@ -98,14 +96,14 @@ class ModelWrapper(object):
         self.discriminator.to(device)
         self.vgg16.to(device)
         # Init progress bar
-        self.progress_bar = tqdm(total=training_iterations)
+        self.progress_bar = tqdm(total=epochs * len(self.training_dataset), dynamic_ncols=True)
         # Init epoch counter
         epoch_counter = 0
         # Init IS and FID score
         IS, FID = 0, 0
         # Main loop
-        while (self.progress_bar.n < training_iterations):
-            for images_real, masks in self.training_dataset:
+        for epoch in range(epochs):
+            for images_real, labels, masks in self.training_dataset:
                 # Update progress bar with batch size
                 self.progress_bar.update(n=images_real.shape[0])
                 # Reset gradients
@@ -113,6 +111,7 @@ class ModelWrapper(object):
                 self.discriminator.zero_grad()
                 # Data to device
                 images_real = images_real.to(device)
+                labels = labels.to(device)
                 for index in range(len(masks)):
                     masks[index] = masks[index].to(device)
                 # Get features of images from vgg16 model
@@ -124,9 +123,9 @@ class ModelWrapper(object):
                 # Generate fake images
                 images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
                 # Discriminator prediction real
-                prediction_real = self.discriminator(images_real)
+                prediction_real = self.discriminator(images_real, labels)
                 # Discriminator prediction fake
-                prediction_fake = self.discriminator(images_fake)
+                prediction_fake = self.discriminator(images_fake, labels)
                 # Get discriminator loss
                 loss_discriminator_real, loss_discriminator_fake = self.discriminator_loss(prediction_real,
                                                                                            prediction_fake)
@@ -138,7 +137,7 @@ class ModelWrapper(object):
                 # Generate new fake images
                 images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
                 # Discriminator prediction fake
-                prediction_fake = self.discriminator(images_fake)
+                prediction_fake = self.discriminator(images_fake, labels)
                 # Get generator loss
                 loss_generator = self.generator_loss(prediction_fake)
                 # Get diversity loss
@@ -149,7 +148,8 @@ class ModelWrapper(object):
                 loss_generator_semantic_reconstruction = \
                     self.semantic_reconstruction_loss(features_real, features_fake, masks)
                 # Calc complied loss
-                loss_generator_complied = loss_generator + loss_generator_semantic_reconstruction + loss_generator_diversity
+                loss_generator_complied = loss_generator + loss_generator_semantic_reconstruction \
+                                          + loss_generator_diversity
                 # Calc gradients
                 loss_generator_complied.backward()
                 # Optimize generator
@@ -159,9 +159,9 @@ class ModelWrapper(object):
                     'Loss Div={:.4f}, Loss Rec={:.4f}, Loss G={:.4f}, Loss D={:.4f}'.format(
                         loss_generator_diversity.item(), loss_generator_semantic_reconstruction.item(),
                         loss_generator.item(), (loss_discriminator_fake + loss_discriminator_real).item()))
-            # Validate model
-            if epoch_counter % validate_after_n_epochs == 0:
-                IS, FID = self.validate(device=device)  # IS in upper case cause is is a key word...
+                # Validate model
+                if epoch_counter % validate_after_n_iterations == 0:
+                    IS, FID = self.validate(device=device)  # IS in upper case cause is is a key word...
             # Increment epoch counter
             epoch_counter += 1
         # Close progress bar

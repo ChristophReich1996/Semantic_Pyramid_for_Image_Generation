@@ -14,7 +14,7 @@ class Generator(nn.Module):
     Generator network
     '''
 
-    def __init__(self, out_channels: int = 3, latent_dimensions: int = 100,
+    def __init__(self, out_channels: int = 3, latent_dimensions: int = 128,
                  channels_factor: Union[int, float] = 1) -> None:
         '''
         Constructor method
@@ -27,25 +27,24 @@ class Generator(nn.Module):
         self.latent_dimensions = latent_dimensions
         # Init linear input layers
         self.input_path = nn.ModuleList([
-            LinearBlock(in_features=latent_dimensions, out_features=int(128 // channels_factor), feature_size=365),
-            LinearBlock(in_features=int(128 // channels_factor), out_features=int(128 // channels_factor),
-                        feature_size=4096),
-            nn.Linear(in_features=int(128 // channels_factor), out_features=int(512 // channels_factor) * 4 * 4),
+            LinearBlock(in_features=latent_dimensions, out_features=128, feature_size=365),
+            LinearBlock(in_features=128, out_features=128, feature_size=4096),
+            nn.Linear(in_features=128, out_features=int(512 // channels_factor) * 4 * 4),
             nn.LeakyReLU(negative_slope=0.2)
         ])
         # Init main residual path
         self.main_path = nn.ModuleList([
-            ResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(512 // channels_factor),
-                          feature_channels=513),
-            ResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(512 // channels_factor),
-                          feature_channels=513),
-            ResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(256 // channels_factor),
-                          feature_channels=257),
+            GeneratorResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(512 // channels_factor),
+                                   feature_channels=513),
+            GeneratorResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(512 // channels_factor),
+                                   feature_channels=513),
+            GeneratorResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(256 // channels_factor),
+                                   feature_channels=257),
             SelfAttention(channels=int(256 // channels_factor)),
-            ResidualBlock(in_channels=int(256 // channels_factor), out_channels=int(128 // channels_factor),
-                          feature_channels=129),
-            ResidualBlock(in_channels=int(128 // channels_factor), out_channels=int(64 // channels_factor),
-                          feature_channels=65)
+            GeneratorResidualBlock(in_channels=int(256 // channels_factor), out_channels=int(128 // channels_factor),
+                                   feature_channels=129),
+            GeneratorResidualBlock(in_channels=int(128 // channels_factor), out_channels=int(64 // channels_factor),
+                                   feature_channels=65)
         ])
         # Init final block
         self.final_block = nn.Sequential(
@@ -56,7 +55,8 @@ class Generator(nn.Module):
             nn.LeakyReLU(negative_slope=0.2),
             spectral_norm(
                 nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=out_channels, kernel_size=(1, 1),
-                          stride=(1, 1), padding=(0, 0), bias=True))
+                          stride=(1, 1), padding=(0, 0), bias=True)),
+            nn.Tanh()
         )
 
     def forward(self, input: torch.Tensor, features: List[torch.Tensor],
@@ -106,7 +106,7 @@ class Discriminator(nn.Module):
     Discriminator network
     '''
 
-    def __init__(self, in_channels: int = 3, channel_factor: Union[int, float] = 1):
+    def __init__(self, in_channels: int = 3, channel_factor: Union[int, float] = 1, number_of_classes: int = 365):
         '''
         Constructor mehtod
         :param in_channels: (int) Number of input channels (grayscale = 1, rgb =3)
@@ -116,27 +116,40 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         # Init layers
         self.layers = nn.Sequential(
-            DiscriminatorBlock(in_channels=in_channels, out_channels=int(64 // channel_factor)),
-            DiscriminatorBlock(in_channels=int(64 // channel_factor), out_channels=int(128 // channel_factor)),
-            DiscriminatorBlock(in_channels=int(128 // channel_factor), out_channels=int(256 // channel_factor)),
+            DiscriminatorResidualBlock(in_channels=in_channels, out_channels=int(64 // channel_factor)),
+            DiscriminatorResidualBlock(in_channels=int(64 // channel_factor), out_channels=int(128 // channel_factor)),
+            DiscriminatorResidualBlock(in_channels=int(128 // channel_factor), out_channels=int(256 // channel_factor)),
             SelfAttention(channels=int(256 // channel_factor)),
-            DiscriminatorBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
+            DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
             SelfAttention(channels=int(256 // channel_factor)),
-            DiscriminatorBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
-            spectral_norm(nn.Conv2d(in_channels=int(256 // channel_factor), out_channels=1, kernel_size=(6, 6),
-                                    stride=(4, 4), padding=(0, 0), bias=True)),
+            DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
+            DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
+            DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
         )
+        # Init classification layer
+        self.classification = spectral_norm(
+            nn.Linear(in_features=int(256 // channel_factor) * 2 * 2, out_features=1, bias=True))
+        # Init embedding layer
+        self.embedding = spectral_norm(nn.Embedding(num_embeddings=number_of_classes,
+                                      embedding_dim=int(256 // channel_factor) * 2 * 2))
+        self.embedding.weight.data.uniform_(-0.1, 0.1)
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, class_id: torch.Tensor) -> torch.Tensor:
         '''
         Forward pass
         :param input: (torch.Tensor) Input image to be classified, real or fake. Image shape (batch size, 1 or 3, height, width)
         :return: (torch.Tensor) Output prediction of shape (batch size, 1)
         '''
+        # Main path
         output = self.layers(input)
         # Reshape output into two dimensions
-        output = output.view(-1, 1)
-        return output
+        output = output.flatten(start_dim=1)
+        # Perform embedding
+        output_embedding = self.embedding(class_id)
+        output_embedding = (output.unsqueeze(dim=1) * output_embedding).sum(dim=1)
+        # Classification path
+        output = self.classification(output)
+        return output + output_embedding
 
 
 class VGG16(nn.Module):
@@ -246,7 +259,7 @@ class SelfAttention(nn.Module):
         return output
 
 
-class ResidualBlock(nn.Module):
+class GeneratorResidualBlock(nn.Module):
     '''
     Residual block
     '''
@@ -259,7 +272,7 @@ class ResidualBlock(nn.Module):
         :param feature_channels: (int) Number of feature channels
         '''
         # Call super constructor
-        super(ResidualBlock, self).__init__()
+        super(GeneratorResidualBlock, self).__init__()
         # Init main operations
         self.main_block = nn.Sequential(
             spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
@@ -337,18 +350,36 @@ class LinearBlock(nn.Module):
         return output
 
 
-class DiscriminatorBlock(nn.Module):
+class DiscriminatorResidualBlock(nn.Module):
+    '''
+    Simple residual block for the discriminator model.
+    '''
 
     def __init__(self, in_channels: int, out_channels: int) -> None:
+        '''
+        Constructor
+        :param in_channels: (int) Number of input channels
+        :param out_channels: (int) Number of output channels
+        '''
         # Call super constructor
-        super(DiscriminatorBlock, self).__init__()
-        # Init convolution and activation
-        self.block = nn.Sequential(
+        super(DiscriminatorResidualBlock, self).__init__()
+        # Init operation of the main part
+        self.main_block = nn.Sequential(
             spectral_norm(
-                nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(4, 4), stride=(2, 2),
-                          padding=(1, 1))),
+                nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(3, 3), padding=(1, 1),
+                          stride=(1, 1), bias=True)),
+            nn.LeakyReLU(negative_slope=0.2),
+            spectral_norm(
+                nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=(3, 3), padding=(1, 1),
+                          stride=(1, 1), bias=True)),
             nn.LeakyReLU(negative_slope=0.2)
         )
+        # Init residual mapping
+        self.residual_mapping = spectral_norm(
+            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 1), padding=(0, 0),
+                      stride=(1, 1), bias=True))
+        # Init downsmapling
+        self.downsampling = nn.AvgPool2d(kernel_size=(2, 2))
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         '''
@@ -356,5 +387,11 @@ class DiscriminatorBlock(nn.Module):
         :param input: (torch.Tensor) Input tensor of shape (batch size, in channels, height, width)
         :return: (torch.Tensor) Output tensor of shape (batch size, in channels, height / 2, width / 2)
         '''
-        output = self.block(input)
+        # Main path
+        output = self.main_block(input)
+        # Residual mapping
+        output_residual = self.residual_mapping(input)
+        output = output + output_residual
+        # Downsampling
+        output = self.downsampling(output)
         return output

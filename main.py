@@ -1,4 +1,3 @@
-# TODO: Implement class-embeddings and truncation trick
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -22,23 +21,21 @@ if __name__ == '__main__':
     generator_optimizer = torch.optim.Adam(generator.parameters(), lr=0.0001)
     discriminator_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.0002)
     # Init dataset
-    training_dataset = DataLoader(data.TinyImageNet(path='/home/creich/tiny-image-net/tiny-imagenet-200/train'),
-                                  batch_size=120, num_workers=120, shuffle=True,
-                                  collate_fn=data.tensor_list_of_masks_collate_function)
-    validation_dataset = DataLoader(data.TinyImageNet(path='/home/creich/tiny-image-net/tiny-imagenet-200/val'),
-                                    batch_size=120, num_workers=120, shuffle=True,
-                                    collate_fn=data.tensor_list_of_masks_collate_function)
-    test_dataset = DataLoader(data.TinyImageNet(path='/home/creich/tiny-image-net/tiny-imagenet-200/test'),
-                              batch_size=120, num_workers=120, shuffle=True,
-                              collate_fn=data.tensor_list_of_masks_collate_function)
+    training_dataset = DataLoader(
+        data.Places365(path_to_index_file='/home/creich/places365_standard', index_file_name='train.txt'),
+        batch_size=90, num_workers=90, shuffle=True,
+        collate_fn=data.image_label_list_of_masks_collate_function)
+    validation_dataset = DataLoader(
+        data.Places365(path_to_index_file='/home/creich/places365_standard', index_file_name='train.txt'),
+        batch_size=90, num_workers=90, shuffle=True,
+        collate_fn=data.image_label_list_of_masks_collate_function)
     # Init model wrapper
     model_wrapper = ModelWrapper(generator=generator,
                                  discriminator=discriminator,
                                  vgg16=nn.DataParallel(VGG16()),
                                  training_dataset=training_dataset,
-                                 test_dataset=test_dataset,
                                  validation_dataset=validation_dataset,
                                  generator_optimizer=generator_optimizer,
                                  discriminator_optimizer=discriminator_optimizer)
     # Perform training
-    model_wrapper.train(training_iterations=8000000, device='cuda')
+    model_wrapper.train(epochs=2, device='cuda')
