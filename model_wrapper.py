@@ -149,8 +149,7 @@ class ModelWrapper(object):
                 loss_generator_semantic_reconstruction = \
                     self.semantic_reconstruction_loss(features_real, features_fake, masks)
                 # Calc complied loss
-                loss_generator_complied = loss_generator + loss_generator_diversity + \
-                                          loss_generator_semantic_reconstruction
+                loss_generator_complied = loss_generator + loss_generator_semantic_reconstruction + loss_generator_diversity
                 # Calc gradients
                 loss_generator_complied.backward()
                 # Optimize generator

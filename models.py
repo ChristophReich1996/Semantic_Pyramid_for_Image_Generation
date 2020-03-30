@@ -27,7 +27,7 @@ class Generator(nn.Module):
         self.latent_dimensions = latent_dimensions
         # Init linear input layers
         self.input_path = nn.ModuleList([
-            LinearBlock(in_features=latent_dimensions, out_features=int(128 // channels_factor), feature_size=1000),
+            LinearBlock(in_features=latent_dimensions, out_features=int(128 // channels_factor), feature_size=365),
             LinearBlock(in_features=int(128 // channels_factor), out_features=int(128 // channels_factor),
                         feature_size=4096),
             nn.Linear(in_features=int(128 // channels_factor), out_features=int(512 // channels_factor) * 4 * 4),
@@ -144,15 +144,19 @@ class VGG16(nn.Module):
     Implementation of a pre-trained VGG 16 model which outputs intermediate feature activations of the model.
     '''
 
-    def __init__(self, pretrained: bool = True) -> None:
+    def __init__(self, pretrained: bool = True,
+                 path_to_pre_trained_model: str = 'pre_trained_models/vgg_places_365.pt') -> None:
         '''
         Constructor
         :param pretrained: (bool) True if the default pre trained vgg16 model pre trained in image net should be used
         '''
         # Call super constructor
         super(VGG16, self).__init__()
-        # Load model from torchvision
-        self.vgg16 = torchvision.models.vgg16(pretrained=pretrained)
+        # Load model
+        if pretrained:
+            self.vgg16 = torch.load(path_to_pre_trained_model)
+        else:
+            self.vgg16 = torchvision.models.vgg16(pretrained=False)
         # Convert feature module into model list
         self.vgg16.features = nn.ModuleList(list(self.vgg16.features))
         # Convert classifier into module list
