@@ -115,7 +115,7 @@ class ModelWrapper(object):
         self.discriminator.to(device)
         self.vgg16.to(device)
         # Init progress bar
-        self.progress_bar = tqdm(total=epochs * len(self.training_dataset), dynamic_ncols=True)
+        self.progress_bar = tqdm(total=epochs * len(self.training_dataset.dataset), dynamic_ncols=True)
         # Initial validation
         self.progress_bar.set_description('Validation')
         fid = self.validate(device=device)
