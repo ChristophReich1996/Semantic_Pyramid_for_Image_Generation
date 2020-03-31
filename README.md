@@ -1,11 +1,19 @@
 # Semantic Pyramid for Image Generation
-## WORK IN PROGRESS...
 **Unofficel** [PyTorch](https://pytorch.org/) implementation of the paper [Semantic Pyramid for Image Generation](https://arxiv.org/pdf/2003.06221.pdf) by Assaf Shocher & Yossi Gandelsman.
 
 ![Results](figures/paper_results_overview.png "Paper results")
 [Source](https://arxiv.org/pdf/2003.06221.pdf). Proposed results of the paper.
 
 ## Model architecture
+
+![Architecture](figures/paper_architecture.png "Paper architecture")
+[Source](https://arxiv.org/pdf/2003.06221.pdf)
+
+The full architecture consists of three parts. First, the object recognition model which is implemented as a
+pre-trained VGG 16 network. Secondly, the residual generator network which is partly based on the generator architecture 
+of the [SAGAN](https://arxiv.org/pdf/1805.08318.pdf).
+And thirdly, the residual discriminator network which is also based on the 
+[SAGAN](https://arxiv.org/pdf/1805.08318.pdf).
 
 ## Dataset
 To download and extract the [places365](http://places2.csail.mit.edu/download.html) dataset from the official website
@@ -41,3 +49,9 @@ Argument | Default value | Info
 `--load_pretrained_vgg16` | 'pre_trained_models/vgg_places_365.pt' | Path of the pre-trained VGG 16 to be loaded (.pt)
 `--path_to_places365` | 'pre_trained_models/vgg_places_365.pt' | Path to places365 dataset
 `--epochs` | 100 | Epochs to perform while training
+
+While training logs and models gets save automatically in the `saved_data` file. Inference plots also gets saved in the
+same folder.
+
+## Results
+WORK IN PROGRESS...
