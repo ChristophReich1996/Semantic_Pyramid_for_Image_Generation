@@ -50,7 +50,7 @@ Argument | Default value | Info
 `--path_to_places365` | 'pre_trained_models/vgg_places_365.pt' | Path to places365 dataset
 `--epochs` | 100 | Epochs to perform while training
 
-While training logs and models gets save automatically in the `saved_data` file. Inference plots also gets saved in the
+While training logs and models gets save automatically to the `saved_data` file. Inference plots also gets saved in the
 same folder.
 
 ## Results
