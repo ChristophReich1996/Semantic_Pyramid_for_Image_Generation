@@ -24,7 +24,7 @@ sh download_places365.sh
 ## Pre-trained VGG 16 model
 To download and convert the VGG 16 model pre-trained on the places dataset run the following command
 ```
-sh download_pretrained_vgg16_.sh
+sh download_pretrained_vgg16.sh
 ```
 This script downloads the official pre-trained caffe models from the
 [places365 repository](https://github.com/CSAILVision/places365). Afterwards, the caffe model gets converted with the
