@@ -9,7 +9,7 @@ parser.add_argument('--train', type=int, default=1,
 parser.add_argument('--test', type=int, default=1,
                     help='Test network (default=1 (True)')
 
-parser.add_argument('--batch_size', type=int, default=60,
+parser.add_argument('--batch_size', type=int, default=20,
                     help='Batch size of the training and test set (default=60)')
 
 parser.add_argument('--lr', type=float, default=1e-04,
@@ -21,8 +21,8 @@ parser.add_argument('--channel_factor', type=float, default=1.0,
 parser.add_argument('--device', type=str, default='cuda',
                     help='Device to use (default=cuda)')
 
-parser.add_argument('--gpus_to_use', type=str, default='0, 2, 3',
-                    help='Indexes of the GPUs to be use (default=0, 2, 3)')
+parser.add_argument('--gpus_to_use', type=str, default='0',
+                    help='Indexes of the GPUs to be use (default=0)')
 
 parser.add_argument('--use_data_parallel', type=int, default=1,
                     help='Use multiple GPUs (default=1 (True))')
