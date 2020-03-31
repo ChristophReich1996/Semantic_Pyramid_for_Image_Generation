@@ -47,7 +47,7 @@ Argument | Default value | Info
 `--load_generator_network` | None | Path of the generator network to be loaded (.pt)
 `--load_discriminator_network` | None | Path of the discriminator network to be loaded (.pt)
 `--load_pretrained_vgg16` | 'pre_trained_models/vgg_places_365.pt' | Path of the pre-trained VGG 16 to be loaded (.pt)
-`--path_to_places365` | 'pre_trained_models/vgg_places_365.pt' | Path to places365 dataset
+`--path_to_places365` | 'places365_standard' | Path to places365 dataset
 `--epochs` | 100 | Epochs to perform while training
 
 While training logs and models gets save automatically to the `saved_data` file. Inference plots also gets saved in the
