@@ -155,8 +155,7 @@ class VGG16(nn.Module):
     Implementation of a pre-trained VGG 16 model which outputs intermediate feature activations of the model.
     '''
 
-    def __init__(self, pretrained: bool = True,
-                 path_to_pre_trained_model: str = 'pre_trained_models/vgg_places_365.pt') -> None:
+    def __init__(self, path_to_pre_trained_model: str = None) -> None:
         '''
         Constructor
         :param pretrained: (bool) True if the default pre trained vgg16 model pre trained in image net should be used
@@ -164,7 +163,7 @@ class VGG16(nn.Module):
         # Call super constructor
         super(VGG16, self).__init__()
         # Load model
-        if pretrained:
+        if path_to_pre_trained_model is not None:
             self.vgg16 = torch.load(path_to_pre_trained_model)
         else:
             self.vgg16 = torchvision.models.vgg16(pretrained=False)

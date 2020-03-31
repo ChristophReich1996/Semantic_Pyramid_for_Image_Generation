@@ -90,7 +90,7 @@ class ModelWrapper(object):
         # Generate latents for validation
         self.validation_latents = torch.randn(49, self.latent_dimensions, dtype=torch.float32)
 
-    def train(self, epochs: int = 20, validate_after_n_iterations: int = 100000, device: str = 'cuda',
+    def train(self, epochs: int = 20, validate_after_n_iterations: int = 10000, device: str = 'cuda',
               save_model_after_n_epochs: int = 10) -> None:
         # Adopt to batch size
         validate_after_n_iterations = (validate_after_n_iterations // self.training_dataset.batch_size) \

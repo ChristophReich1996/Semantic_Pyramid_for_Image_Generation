@@ -19,7 +19,7 @@ class InceptionNetworkFID(nn.Module):
         # Call super constructor
         super(InceptionNetworkFID, self).__init__()
         # Init pre trained inception net
-        self.inception_net = torchvision.models.inception_v3(pretrained=True, transform_input=False)
+        self.inception_net = torchvision.models.inception_v3(pretrained=True, transform_input=True)
         # Init hook to get intermediate output
         self.inception_net.Mixed_7c.register_forward_hook(self.output_hook)
 
@@ -61,7 +61,7 @@ def frechet_inception_distance(dataset_real: DataLoader, generator: nn.Module, v
     for images, labels, masks in dataset_real:
         # Data to device
         images = images.to(device)
-        labels = labels.to(device)
+        del labels
         for index in range(len(masks)):
             masks[index] = masks[index].to(device)
         # Normalize images
@@ -88,7 +88,7 @@ def frechet_inception_distance(dataset_real: DataLoader, generator: nn.Module, v
         # Reshape
         if images_fake_normalized.shape[2] != 299 or images_fake_normalized.shape[3] != 299:
             images_fake_normalized = nn.functional.interpolate(images_fake_normalized, size=(299, 299), mode='bilinear',
-                                                          align_corners=False)
+                                                               align_corners=False)
         # Get activation
         fake_activations.append(inception_net(images_fake_normalized).detach().cpu())
     # Make one big numpy array by concat at batch dim
