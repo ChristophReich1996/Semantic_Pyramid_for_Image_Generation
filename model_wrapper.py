@@ -89,6 +89,16 @@ class ModelWrapper(object):
                                      nrow=7)
         # Generate latents for validation
         self.validation_latents = torch.randn(49, self.latent_dimensions, dtype=torch.float32)
+        # Log hyperparameter
+        self.logger.hyperparameter['generator'] = str(self.generator)
+        self.logger.hyperparameter['discriminator'] = str(self.discriminator)
+        self.logger.hyperparameter['vgg16'] = str(self.vgg16)
+        self.logger.hyperparameter['generator_optimizer'] = str(self.generator_optimizer)
+        self.logger.hyperparameter['discriminator_optimizer'] = str(self.discriminator_optimizer)
+        self.logger.hyperparameter['generator_loss'] = str(self.generator_loss)
+        self.logger.hyperparameter['discriminator_loss'] = str(self.discriminator_loss)
+        self.logger.hyperparameter['diversity_loss'] = str(self.diversity_loss)
+        self.logger.hyperparameter['discriminator_loss'] = str(self.semantic_reconstruction_loss)
 
     def train(self, epochs: int = 20, validate_after_n_iterations: int = 10000, device: str = 'cuda',
               save_model_after_n_epochs: int = 10) -> None:

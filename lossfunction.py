@@ -21,6 +21,14 @@ class SemanticReconstructionLoss(nn.Module):
         self.max_pooling_2d = nn.MaxPool2d(2)
         self.max_pooling_1d = nn.MaxPool1d(2)
 
+    def __repr__(self):
+        '''
+        Get representation of the loss module
+        :return: (str) String including information
+        '''
+        return '{}, weights factor={}, maxpool kernel size{}' \
+            .format(self.__class__.__name__, self.weight_factor, self.max_pooling_1d.kernel_size)
+
     def forward(self, features_real: List[torch.Tensor], features_fake: List[torch.Tensor],
                 masks: List[torch.Tensor]) -> torch.Tensor:
         '''
@@ -72,6 +80,13 @@ class DiversityLoss(nn.Module):
         # Init epsilon for numeric stability
         self.epsilon = 1e-08
 
+    def __repr__(self):
+        '''
+        Get representation of the loss module
+        :return: (str) String including information
+        '''
+        return '{}, weights factor={}'.format(self.__class__.__name__, self.weight_factor)
+
     def forward(self, images_fake: torch.Tensor, latent_inputs: torch.Tensor) -> torch.Tensor:
         '''
         Forward pass
@@ -102,6 +117,13 @@ class LSGANGeneratorLoss(nn.Module):
         # Call super constructor
         super(LSGANGeneratorLoss, self).__init__()
 
+    def __repr__(self):
+        '''
+        Get representation of the loss module
+        :return: (str) String including information
+        '''
+        return str(self.__class__.__name__)
+
     def forward(self, images_fake: torch.Tensor) -> torch.Tensor:
         '''
         Forward pass
@@ -119,6 +141,13 @@ class LSGANDiscriminatorLoss(nn.Module):
     def __init__(self) -> None:
         # Call super constructor
         super(LSGANDiscriminatorLoss, self).__init__()
+
+    def __repr__(self):
+        '''
+        Get representation of the loss module
+        :return: (str) String including information
+        '''
+        return str(self.__class__.__name__)
 
     def forward(self, images_real: torch.Tensor, images_fake: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         '''
