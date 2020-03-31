@@ -24,8 +24,8 @@ parser.add_argument('--device', type=str, default='cuda',
 parser.add_argument('--gpus_to_use', type=str, default='0',
                     help='Indexes of the GPUs to be use (default=0)')
 
-parser.add_argument('--use_data_parallel', type=int, default=1,
-                    help='Use multiple GPUs (default=1 (True))')
+parser.add_argument('--use_data_parallel', type=int, default=0,
+                    help='Use multiple GPUs (default=0 (False))')
 
 parser.add_argument('--load_generator_network', type=str, default=None,
                     help='Name of the generator network the be loaded from model file (.pt) (default=None)')
