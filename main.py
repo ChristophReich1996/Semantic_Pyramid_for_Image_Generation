@@ -25,17 +25,22 @@ if __name__ == '__main__':
         data.Places365(path_to_index_file='/home/creich/places365_standard', index_file_name='train.txt'),
         batch_size=60, num_workers=60, shuffle=True,
         collate_fn=data.image_label_list_of_masks_collate_function)
-    validation_dataset = DataLoader(
-        data.Places365(path_to_index_file='/home/creich/places365_standard', index_file_name='train.txt'),
+    validation_dataset_fid = DataLoader(
+        data.Places365(path_to_index_file='/home/creich/places365_standard', index_file_name='val.txt',
+                       max_length=6000, validation=True),
         batch_size=60, num_workers=60, shuffle=False,
         collate_fn=data.image_label_list_of_masks_collate_function)
+    validation_dataset = data.Places365(path_to_index_file='/home/creich/places365_standard', index_file_name='val.txt',
+                                        test=True)
     # Init model wrapper
     model_wrapper = ModelWrapper(generator=generator,
                                  discriminator=discriminator,
                                  vgg16=nn.DataParallel(VGG16()),
                                  training_dataset=training_dataset,
                                  validation_dataset=validation_dataset,
+                                 validation_dataset_fid=validation_dataset_fid,
                                  generator_optimizer=generator_optimizer,
                                  discriminator_optimizer=discriminator_optimizer)
     # Perform training
+    model_wrapper.inference()
     model_wrapper.train(epochs=100, device='cuda')

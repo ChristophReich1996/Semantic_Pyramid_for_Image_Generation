@@ -4,6 +4,8 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from skimage.draw import random_shapes
+import os
+import json
 
 
 def get_masks_for_training(
@@ -79,3 +81,90 @@ def get_masks_for_training(
     # Reverse order of masks to match the features of the vgg16 model
     masks.reverse()
     return masks
+
+
+def get_masks_for_validation(mask_shapes: List[Tuple] =
+                             [(64, 128, 128), (128, 64, 64), (256, 32, 32), (512, 16, 16), (512, 8, 8), (4096,),
+                              (365,)], device: str = 'cpu', add_batch_size: bool = False) -> List[torch.Tensor]:
+    return get_masks_for_inference(layer_index_to_choose=np.random.choice(range(len(mask_shapes))),
+                                   mask_shapes=mask_shapes, device=device, add_batch_size=add_batch_size)
+
+
+def get_masks_for_inference(layer_index_to_choose: int, mask_shapes: List[Tuple] =
+[(64, 128, 128), (128, 64, 64), (256, 32, 32), (512, 16, 16), (512, 8, 8), (4096,),
+ (365,)], device: str = 'cpu', add_batch_size: bool = False) -> List[torch.Tensor]:
+    # Init list for masks
+    masks = []
+    # Loop over all shapes
+    for index, mask_shape in enumerate(reversed(mask_shapes)):
+        if index == layer_index_to_choose:
+            if len(mask_shape) > 1:
+                # Save mask to list
+                masks.append(torch.ones((1, mask_shape[1], mask_shape[2]), dtype=torch.float32, device=device))
+            else:
+                # Save mask to list
+                masks.append(torch.ones(mask_shape, dtype=torch.float32, device=device))
+        else:
+            if len(mask_shape) > 1:
+                # Save mask to list
+                masks.append(torch.zeros((1, mask_shape[1], mask_shape[2]), dtype=torch.float32, device=device))
+            else:
+                # Save mask to list
+                masks.append(torch.zeros(mask_shape, dtype=torch.float32, device=device))
+    # Add batch size dimension
+    if add_batch_size:
+        for index in range(len(masks)):
+            masks[index] = masks[index].unsqueeze(dim=0)
+    # Reverse order of masks to match the features of the vgg16 model
+    masks.reverse()
+    return masks
+
+
+def normalize_0_1_batch(input: torch.tensor) -> torch.tensor:
+    '''
+    Normalize a given tensor to a range of [-1, 1]
+    :param input: (Torch tensor) Input tensor
+    :return: (Torch tensor) Normalized output tensor
+    '''
+    input_flatten = input.view(input.shape[0], -1)
+    return ((input - torch.min(input_flatten, dim=1)[0][:, None, None, None]) /
+            (torch.max(input_flatten, dim=1)[0][:, None, None, None] -
+             torch.min(input_flatten, dim=1)[0][:, None, None, None]))
+
+
+class Logger(object):
+    """
+    Class to log different metrics
+    """
+
+    def __init__(self) -> None:
+        self.metrics = dict()
+        self.hyperparameter = dict()
+
+    def log(self, metric_name: str, value: float) -> None:
+        """
+        Method writes a given metric value into a dict including list for every metric
+        :param metric_name: (str) Name of the metric
+        :param value: (float) Value of the metric
+        """
+        if metric_name in self.metrics:
+            self.metrics[metric_name].append(value)
+        else:
+            self.metrics[metric_name] = [value]
+
+    def save_metrics(self, path: str) -> None:
+        """
+        Static method to save dict of metrics
+        :param metrics: (Dict[str, List[float]]) Dict including metrics
+        :param path: (str) Path to save metrics
+        :param add_time_to_file_name: (bool) True if time has to be added to filename of every metric
+        """
+        # Save dict of hyperparameter as json file
+        with open(os.path.join(path, 'hyperparameter.txt'), 'w') as json_file:
+            json.dump(self.hyperparameter, json_file)
+        # Iterate items in metrics dict
+        for metric_name, values in self.metrics.items():
+            # Convert list of values to torch tensor to use build in save method from torch
+            values = torch.tensor(values)
+            # Save values
+            torch.save(values, os.path.join(path, '{}.pt'.format(metric_name)))

@@ -1,12 +1,12 @@
 from typing import Tuple, List, Union
 
 import torch
-import torch.nn.functional as F
 from torch.utils.data import Dataset
 import os
 from PIL import Image
 import torchvision.transforms.functional as TVF
 import pandas as pd
+import numpy as np
 
 import misc
 
@@ -14,10 +14,13 @@ import misc
 class Places365(Dataset):
 
     def __init__(self, path_to_index_file: str = '', index_file_name: str = 'train.txt',
-                 return_masks: bool = True) -> None:
+                 return_masks: bool = True, max_length: int = None, validation: bool = False,
+                 test: bool = False) -> None:
         # Save parameter
         self.path_to_index_file = path_to_index_file
         self.return_masks = return_masks
+        self.validation = validation
+        self.test = test
         # Get index file
         self.file_paths = pd.read_csv(os.path.join(path_to_index_file, index_file_name)).values[:, 0]
         self.file_paths.sort()
@@ -27,12 +30,12 @@ class Places365(Dataset):
             folder = file_path.split('/')[1]
             if folder not in self.label_dict:
                 self.label_dict[folder] = len(self.label_dict)
+        # Apply max length by randomly choosing sample form index file
+        if max_length is not None:
+            self.file_paths = np.random.choice(self.file_paths, max_length, replace=False).tolist()
 
     def __len__(self) -> int:
         return len(self.file_paths)
-
-    def set_return_masks(self, flag: bool) -> None:
-        self.return_masks = flag
 
     def __getitem__(self, item) -> Union[
         Tuple[torch.Tensor, torch.Tensor, List[torch.Tensor]], Tuple[torch.Tensor, torch.Tensor]]:
@@ -46,15 +49,21 @@ class Places365(Dataset):
         image = TVF.to_tensor(image)
         # Normalize image to a range of 0 to 1
         image.sub_(image.min()).div_(image.max() - image.min())
+        # Grayscale to rgb if needed
+        if image.shape[0] == 1:
+            image = image.repeat_interleave(dim=0, repeats=3)
         # Make label
         label = torch.zeros(len(self.label_dict), dtype=torch.long)
         label[self.label_dict[self.file_paths[item].split('/')[1]]] = 1
+        # Return while testing no label and masks
+        if self.test:
+            return image
         # Get random masks
-        if self.return_masks:
-            masks = misc.get_masks_for_training()
-            return image, label, masks
+        if self.validation:
+            masks = misc.get_masks_for_validation()
         else:
-            return image, label
+            masks = misc.get_masks_for_training()
+        return image, label, masks
 
 
 def image_label_list_of_masks_collate_function(batch: List[Tuple[torch.Tensor, torch.Tensor, List[torch.Tensor]]]) -> \

@@ -2,10 +2,9 @@ from typing import Union
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 import torchvision
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
 import os
@@ -13,6 +12,8 @@ import os
 from models import VGG16, Generator, Discriminator
 from lossfunction import SemanticReconstructionLoss, DiversityLoss, LSGANGeneratorLoss, LSGANDiscriminatorLoss
 from data import image_label_list_of_masks_collate_function
+from frechet_inception_distance import frechet_inception_distance
+from misc import Logger, get_masks_for_inference
 
 
 class ModelWrapper(object):
@@ -24,7 +25,8 @@ class ModelWrapper(object):
                  generator: Union[Generator, nn.DataParallel],
                  discriminator: Union[Discriminator, nn.DataParallel],
                  training_dataset: DataLoader,
-                 validation_dataset: DataLoader,
+                 validation_dataset: Dataset,
+                 validation_dataset_fid: DataLoader,
                  vgg16: Union[VGG16, nn.DataParallel] = VGG16(),
                  generator_optimizer: torch.optim.Optimizer = None,
                  discriminator_optimizer: torch.optim.Optimizer = None,
@@ -51,6 +53,7 @@ class ModelWrapper(object):
         self.discriminator = discriminator
         self.training_dataset = training_dataset
         self.validation_dataset = validation_dataset
+        self.validation_dataset_fid = validation_dataset_fid
         self.vgg16 = vgg16
         self.generator_optimizer = generator_optimizer
         self.discriminator_optimizer = discriminator_optimizer
@@ -60,6 +63,8 @@ class ModelWrapper(object):
         self.diversity_loss = diversity_loss
         self.latent_dimensions = self.generator.module.latent_dimensions \
             if isinstance(self.generator, nn.DataParallel) else self.generator.latent_dimensions
+        # Init logger
+        self.logger = Logger()
         # Make directories to save logs, plots and models during training
         time_and_date = str(datetime.now())
         self.path_save_models = os.path.join(save_data_path, 'models_' + time_and_date)
@@ -72,10 +77,10 @@ class ModelWrapper(object):
         if not os.path.exists(self.path_save_metrics):
             os.makedirs(self.path_save_metrics)
         # Make indexes for validation plots
-        validation_plot_indexes = np.random.choice(range(len(self.validation_dataset)), 49, replace=False)
+        validation_plot_indexes = np.random.choice(range(len(self.validation_dataset_fid.dataset)), 49, replace=False)
         # Plot and save validation images used to plot generated images
         self.validation_images_to_plot, _, self.validation_masks = image_label_list_of_masks_collate_function(
-            [self.validation_dataset.dataset[index] for index in validation_plot_indexes])
+            [self.validation_dataset_fid.dataset[index] for index in validation_plot_indexes])
         torchvision.utils.save_image(self.validation_images_to_plot, os.path.join(self.path_save_plots,
                                                                                   'validation_images.png'), nrow=7)
         # Plot masks
@@ -85,7 +90,7 @@ class ModelWrapper(object):
         # Generate latents for validation
         self.validation_latents = torch.randn(49, self.latent_dimensions, dtype=torch.float32)
 
-    def train(self, epochs: int = 20, validate_after_n_iterations: int = 10000, device: str = 'cuda',
+    def train(self, epochs: int = 20, validate_after_n_iterations: int = 100000, device: str = 'cuda',
               save_model_after_n_epochs: int = 10) -> None:
         # Adopt to batch size
         validate_after_n_iterations = (validate_after_n_iterations // self.training_dataset.batch_size) \
@@ -101,9 +106,9 @@ class ModelWrapper(object):
         self.vgg16.to(device)
         # Init progress bar
         self.progress_bar = tqdm(total=epochs * len(self.training_dataset), dynamic_ncols=True)
-        # Init epoch counter
-        # Init IS and FID score
-        IS, FID = 0, 0
+        # Initial validation
+        self.progress_bar.set_description('Validation')
+        fid = self.validate(device=device)
         # Main loop
         for epoch in range(epochs):
             for images_real, labels, masks in self.training_dataset:
@@ -159,22 +164,40 @@ class ModelWrapper(object):
                 self.generator_optimizer.step()
                 # Show losses in progress bar description
                 self.progress_bar.set_description(
-                    'Loss Div={:.4f}, Loss Rec={:.4f}, Loss G={:.4f}, Loss D={:.4f}'.format(
-                        loss_generator_diversity.item(), loss_generator_semantic_reconstruction.item(),
+                    'FID={:.4f}, Loss Div={:.4f}, Loss Rec={:.4f}, Loss G={:.4f}, Loss D={:.4f}'.format(
+                        fid, loss_generator_diversity.item(), loss_generator_semantic_reconstruction.item(),
                         loss_generator.item(), (loss_discriminator_fake + loss_discriminator_real).item()))
+                # Log losses
+                self.logger.log(metric_name='loss_discriminator_real', value=loss_discriminator_real.item())
+                self.logger.log(metric_name='loss_discriminator_fake', value=loss_discriminator_fake.item())
+                self.logger.log(metric_name='loss_generator', value=loss_generator.item())
+                self.logger.log(metric_name='loss_generator_semantic_reconstruction',
+                                value=loss_generator_semantic_reconstruction.item())
+                self.logger.log(metric_name='loss_generator_diversity', value=loss_generator_diversity.item())
+                self.logger.log(metric_name='iterations', value=self.progress_bar.n)
+                self.logger.log(metric_name='epoch', value=epoch)
                 # Validate model
                 if self.progress_bar.n % validate_after_n_iterations == 0:
-                    IS, FID = self.validate(device=device)  # IS in upper case cause is is a key word...
+                    self.progress_bar.set_description('Validation')
+                    fid = self.validate(device=device)
+                    # Log fid
+                    self.logger.log(metric_name='fid', value=fid)
+                    self.logger.log(metric_name='iterations_fid', value=self.progress_bar.n)
+                    # Save all logs
+                    self.logger.save_metrics(self.path_save_metrics)
             if epoch % save_model_after_n_epochs == 0:
                 torch.save(self.generator, os.path.join(self.path_save_models, 'generator_{}.pt'.format(epoch)))
                 torch.save(self.discriminator, os.path.join(self.path_save_models, 'discriminator_{}.pt'.format(epoch)))
+            self.inference(device=device)
+            # Save all logs
+            self.logger.save_metrics(self.path_save_metrics)
         # Close progress bar
         self.progress_bar.close()
 
     @torch.no_grad()
-    def validate(self, plot: bool = True, device: str = 'cuda') -> Union[float, float]:
+    def validate(self, device: str = 'cuda') -> float:
         '''
-        IS and FID score gets estimated
+        FID score gets estimated
         :param plot: (bool) True if samples should be plotted
         :return: (float, float) IS and FID score
         '''
@@ -195,7 +218,41 @@ class ModelWrapper(object):
                                      nrow=7)
         # Generator back into train mode
         self.generator.train()
-        return 0.0, 0.0
+        return frechet_inception_distance(dataset_real=self.validation_dataset_fid,
+                                          generator=self.generator, vgg16=self.vgg16)
 
-    def inference(self) -> torch.Tensor:
-        pass
+    @torch.no_grad()
+    def inference(self, device: str = 'cuda') -> None:
+        '''
+        Random images for different feature levels are generated and saved
+        '''
+        # Models to device
+        self.generator.to(device)
+        self.vgg16.to(device)
+        # Generator into eval mode
+        self.generator.eval()
+        # Get random images form validation dataset
+        images = [self.validation_dataset[index].unsqueeze(dim=0).to(device) for index in
+                  np.random.choice(range(len(self.validation_dataset)), replace=False, size=7)]
+        # Get list of masks for different layers
+        masks_levels = [get_masks_for_inference(layer, add_batch_size=True, device=device) for layer in range(7)]
+        # Init tensor of fake images to store all fake images
+        fake_images = torch.empty(7 ** 2, images[0].shape[1], images[0].shape[2], images[0].shape[3],
+                                  dtype=torch.float32, device=device)
+        # Init counter
+        counter = 0
+        # Loop over all image and masks
+        for image in images:
+            for masks in masks_levels:
+                # Generate fake images
+                fake_image = self.generator(
+                    input=torch.randn(1, self.latent_dimensions, dtype=torch.float32, device=device),
+                    features=self.vgg16(image),
+                    masks=masks)
+                # Save fake images
+                fake_images[counter] = fake_image.squeeze(dim=0)
+                # Increment counter
+                counter += 1
+        # Save tensor as image
+        torchvision.utils.save_image(
+            fake_images, os.path.join(self.path_save_plots, 'predictions_{}.png'.format(str(datetime.now()))), nrow=7)
