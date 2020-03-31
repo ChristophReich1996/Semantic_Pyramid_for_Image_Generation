@@ -100,7 +100,7 @@ class ModelWrapper(object):
         self.logger.hyperparameter['diversity_loss'] = str(self.diversity_loss)
         self.logger.hyperparameter['discriminator_loss'] = str(self.semantic_reconstruction_loss)
 
-    def train(self, epochs: int = 20, validate_after_n_iterations: int = 10000, device: str = 'cuda',
+    def train(self, epochs: int = 20, validate_after_n_iterations: int = 100000, device: str = 'cuda',
               save_model_after_n_epochs: int = 10) -> None:
         # Adopt to batch size
         validate_after_n_iterations = (validate_after_n_iterations // self.training_dataset.batch_size) \
