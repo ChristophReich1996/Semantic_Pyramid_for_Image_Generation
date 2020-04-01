@@ -47,8 +47,8 @@ class Places365(Dataset):
         image = Image.open(os.path.join(self.path_to_index_file, self.file_paths[item]))
         # Image to tensor
         image = TVF.to_tensor(image)
-        # Normalize image to a range of 0 to 1
-        image.sub_(image.min()).div_(image.max() - image.min())
+        # Normalize image to a mean of zero and a variance of one
+        image.sub_(image.mean()).div_(image.std())
         # Grayscale to rgb if needed
         if image.shape[0] == 1:
             image = image.repeat_interleave(dim=0, repeats=3)

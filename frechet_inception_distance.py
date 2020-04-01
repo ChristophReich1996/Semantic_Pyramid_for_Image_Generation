@@ -64,14 +64,14 @@ def frechet_inception_distance(dataset_real: DataLoader, generator: nn.Module, v
         del labels
         for index in range(len(masks)):
             masks[index] = masks[index].to(device)
-        # Normalize images
-        images_normalized = misc.normalize_0_1_batch(images)
         # Reshape
-        if images_normalized.shape[2] != 299 or images_normalized.shape[3] != 299:
-            images_normalized = nn.functional.interpolate(images_normalized, size=(299, 299), mode='bilinear',
-                                                          align_corners=False)
+        if images.shape[2] != 299 or images.shape[3] != 299:
+            images_reshaped = nn.functional.interpolate(images, size=(299, 299), mode='bilinear',
+                                                        align_corners=False)
+        else:
+            images_reshaped = images
         # Get activations
-        real_activations.append(inception_net(images_normalized).detach().cpu())
+        real_activations.append(inception_net(images_reshaped).detach().cpu())
         # Get fake images
         # Get features of images from vgg16 model
         with torch.no_grad():
@@ -83,14 +83,12 @@ def frechet_inception_distance(dataset_real: DataLoader, generator: nn.Module, v
                                    dtype=torch.float32, device=device, requires_grad=True)
         # Generate fake images
         images_fake = generator(input=noise_vector, features=features_real, masks=masks)
-        # Normalize images
-        images_fake_normalized = misc.normalize_0_1_batch(images_fake)
         # Reshape
-        if images_fake_normalized.shape[2] != 299 or images_fake_normalized.shape[3] != 299:
-            images_fake_normalized = nn.functional.interpolate(images_fake_normalized, size=(299, 299), mode='bilinear',
-                                                               align_corners=False)
+        if images_fake.shape[2] != 299 or images_fake.shape[3] != 299:
+            images_fake = nn.functional.interpolate(images_fake, size=(299, 299), mode='bilinear',
+                                                    align_corners=False)
         # Get activation
-        fake_activations.append(inception_net(images_fake_normalized).detach().cpu())
+        fake_activations.append(inception_net(images_fake).detach().cpu())
     # Make one big numpy array by concat at batch dim
     real_activations = torch.cat(real_activations, dim=0).numpy()
     # Make again one big numpy array

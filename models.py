@@ -53,8 +53,7 @@ class Generator(nn.Module):
             nn.LeakyReLU(negative_slope=0.2),
             spectral_norm(
                 nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=out_channels, kernel_size=(1, 1),
-                          stride=(1, 1), padding=(0, 0), bias=True)),
-            nn.Tanh()
+                          stride=(1, 1), padding=(0, 0), bias=True))
         )
 
     def forward(self, input: torch.Tensor, features: List[torch.Tensor],
