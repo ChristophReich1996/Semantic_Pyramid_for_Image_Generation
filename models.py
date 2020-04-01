@@ -70,12 +70,12 @@ class Generator(nn.Module):
         for index, layer in enumerate(self.input_path):
             if index == 0:
                 # Mask feature
-                feature = features[depth_counter] + masks[depth_counter]
+                feature = features[depth_counter] * masks[depth_counter]
                 output = layer(input, feature)
                 depth_counter -= 1
             elif index == 1:
                 # Mask feature
-                feature = features[depth_counter] + masks[depth_counter]
+                feature = features[depth_counter] * masks[depth_counter]
                 output = layer(output, feature)
                 depth_counter -= 1
             else:
@@ -90,7 +90,7 @@ class Generator(nn.Module):
                 # Mask feature and concat mask
                 feature = features[depth_counter]
                 mask = masks[depth_counter]
-                feature = torch.cat((feature + mask, mask), dim=1)
+                feature = torch.cat((feature * mask, mask), dim=1)
                 output = layer(output, feature)
                 depth_counter -= 1
         # Final block
