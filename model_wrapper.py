@@ -14,6 +14,7 @@ from lossfunction import SemanticReconstructionLoss, DiversityLoss, LSGANGenerat
 from data import image_label_list_of_masks_collate_function
 from frechet_inception_distance import frechet_inception_distance
 from misc import Logger, get_masks_for_inference
+import misc
 
 
 class ModelWrapper(object):
@@ -81,13 +82,13 @@ class ModelWrapper(object):
         # Plot and save validation images used to plot generated images
         self.validation_images_to_plot, _, self.validation_masks = image_label_list_of_masks_collate_function(
             [self.validation_dataset_fid.dataset[index] for index in validation_plot_indexes])
-        torchvision.utils.save_image(self.validation_images_to_plot, os.path.join(self.path_save_plots,
-                                                                                  'validation_images.png'), nrow=7,
-                                     normalize=True)
+
+        torchvision.utils.save_image(misc.normalize_0_1_batch(self.validation_images_to_plot),
+                                     os.path.join(self.path_save_plots, 'validation_images.png'), nrow=7)
         # Plot masks
         torchvision.utils.save_image(self.validation_masks[0],
                                      os.path.join(self.path_save_plots, 'validation_masks.png'),
-                                     nrow=7, normalize=True)
+                                     nrow=7)
         # Generate latents for validation
         self.validation_latents = torch.randn(49, self.latent_dimensions, dtype=torch.float32)
         # Log hyperparameter
@@ -227,8 +228,9 @@ class ModelWrapper(object):
                                     features=self.vgg16(self.validation_images_to_plot),
                                     masks=self.validation_masks).cpu()
         # Save images
-        torchvision.utils.save_image(fake_image, os.path.join(self.path_save_plots, str(self.progress_bar.n) + '.png'),
-                                     nrow=7, normalize=True)
+        torchvision.utils.save_image(misc.normalize_0_1_batch(fake_image),
+                                     os.path.join(self.path_save_plots, str(self.progress_bar.n) + '.png'),
+                                     nrow=7)
         # Generator back into train mode
         self.generator.train()
         return frechet_inception_distance(dataset_real=self.validation_dataset_fid,
@@ -268,5 +270,5 @@ class ModelWrapper(object):
                 counter += 1
         # Save tensor as image
         torchvision.utils.save_image(
-            fake_images, os.path.join(self.path_save_plots, 'predictions_{}.png'.format(str(datetime.now()))), nrow=7,
-            normalize=True)
+            misc.normalize_0_1_batch(fake_images),
+            os.path.join(self.path_save_plots, 'predictions_{}.png'.format(str(datetime.now()))), nrow=7)
