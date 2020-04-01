@@ -119,6 +119,7 @@ class ModelWrapper(object):
         self.progress_bar = tqdm(total=epochs * len(self.training_dataset.dataset), dynamic_ncols=True)
         # Initial validation
         self.progress_bar.set_description('Validation')
+        self.inference(device=device)
         fid = self.validate(device=device)
         # Main loop
         for epoch in range(epochs):
@@ -191,6 +192,7 @@ class ModelWrapper(object):
                 if self.progress_bar.n % validate_after_n_iterations == 0:
                     self.progress_bar.set_description('Validation')
                     fid = self.validate(device=device)
+                    self.inference(device=device)
                     # Log fid
                     self.logger.log(metric_name='fid', value=fid)
                     self.logger.log(metric_name='iterations_fid', value=self.progress_bar.n)
