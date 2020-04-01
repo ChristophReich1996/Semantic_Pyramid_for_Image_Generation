@@ -19,7 +19,7 @@ class InceptionNetworkFID(nn.Module):
         # Call super constructor
         super(InceptionNetworkFID, self).__init__()
         # Init pre trained inception net
-        self.inception_net = torchvision.models.inception_v3(pretrained=True, transform_input=True)
+        self.inception_net = torchvision.models.inception_v3(pretrained=True, transform_input=False)
         # Init hook to get intermediate output
         self.inception_net.Mixed_7c.register_forward_hook(self.output_hook)
 
@@ -64,12 +64,14 @@ def frechet_inception_distance(dataset_real: DataLoader, generator: nn.Module, v
         del labels
         for index in range(len(masks)):
             masks[index] = masks[index].to(device)
+        # Normalize images
+        images_normalized = misc.normalize_m1_1_batch(images)
         # Reshape
-        if images.shape[2] != 299 or images.shape[3] != 299:
-            images_reshaped = nn.functional.interpolate(images, size=(299, 299), mode='bilinear',
+        if images_normalized.shape[2] != 299 or images_normalized.shape[3] != 299:
+            images_reshaped = nn.functional.interpolate(images_normalized, size=(299, 299), mode='bilinear',
                                                         align_corners=False)
         else:
-            images_reshaped = images
+            images_reshaped = images_normalized
         # Get activations
         real_activations.append(inception_net(images_reshaped).detach().cpu())
         # Get fake images
@@ -83,6 +85,8 @@ def frechet_inception_distance(dataset_real: DataLoader, generator: nn.Module, v
                                    dtype=torch.float32, device=device, requires_grad=True)
         # Generate fake images
         images_fake = generator(input=noise_vector, features=features_real, masks=masks)
+        # Normalize fake images
+        images_fake = misc.normalize_m1_1_batch(images_fake)
         # Reshape
         if images_fake.shape[2] != 299 or images_fake.shape[3] != 299:
             images_fake = nn.functional.interpolate(images_fake, size=(299, 299), mode='bilinear',

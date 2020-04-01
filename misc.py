@@ -120,16 +120,16 @@ def get_masks_for_inference(layer_index_to_choose: int, mask_shapes: List[Tuple]
     return masks
 
 
-def normalize_0_1_batch(input: torch.tensor) -> torch.tensor:
+def normalize_m1_1_batch(input: torch.tensor) -> torch.tensor:
     '''
     Normalize a given tensor to a range of [-1, 1]
     :param input: (Torch tensor) Input tensor
     :return: (Torch tensor) Normalized output tensor
     '''
     input_flatten = input.view(input.shape[0], -1)
-    return ((input - torch.min(input_flatten, dim=1)[0][:, None, None, None]) /
-            (torch.max(input_flatten, dim=1)[0][:, None, None, None] -
-             torch.min(input_flatten, dim=1)[0][:, None, None, None]))
+    return 2 * ((input - torch.min(input_flatten, dim=1)[0][:, None, None, None]) / (
+            torch.max(input_flatten, dim=1)[0][:, None, None, None] -
+            torch.min(input_flatten, dim=1)[0][:, None, None, None])) - 1
 
 
 class Logger(object):
