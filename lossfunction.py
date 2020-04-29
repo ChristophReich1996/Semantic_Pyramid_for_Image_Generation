@@ -53,8 +53,9 @@ class SemanticReconstructionLoss(nn.Module):
                 feature_fake = self.max_pooling_1d(feature_fake.unsqueeze(dim=1))
                 mask = self.max_pooling_1d(mask.unsqueeze(dim=1))
             # Normalize features
-            feature_real = (feature_real - feature_real.mean()) / feature_real.std()
-            feature_fake = (feature_fake - feature_fake.mean()) / feature_fake.std()
+            union = torch.cat((feature_real, feature_fake), dim=0)
+            feature_real = (feature_real - union.mean()) / union.std()
+            feature_fake = (feature_fake - union.mean()) / union.std()
             # Calc l1 loss of the real and fake feature conditionalized by the corresponding mask
             loss = loss + torch.mean(torch.abs((feature_real - feature_fake) * mask))
         # Average loss with number of features
@@ -156,4 +157,4 @@ class LSGANDiscriminatorLoss(nn.Module):
         :param images_fake: (torch.Tensor) Fake images generated
         :return: (torch.Tensor) Loss real part and loss fake part
         '''
-        return 0.5 * torch.mean((images_real - 1) ** 2), 0.5 * torch.mean(images_fake ** 2)
+        return 0.5 * torch.mean((images_real - 1.0) ** 2), 0.5 * torch.mean(images_fake ** 2)
