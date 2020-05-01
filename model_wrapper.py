@@ -141,8 +141,8 @@ class ModelWrapper(object):
                     # Generate random noise vector
                     noise_vector = torch.randn((images_real.shape[0], self.latent_dimensions),
                                                dtype=torch.float32, device=device, requires_grad=True)
-                # Generate fake images
-                images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
+                    # Generate fake images
+                    images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
                 # Discriminator prediction real
                 prediction_real = self.discriminator(images_real, labels)
                 # Discriminator prediction fake
