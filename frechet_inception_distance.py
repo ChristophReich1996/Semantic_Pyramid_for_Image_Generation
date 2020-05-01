@@ -55,6 +55,10 @@ def frechet_inception_distance(dataset_real: DataLoader, generator: nn.Module, v
     '''
     # Init inception net
     inception_net = InceptionNetworkFID().to(device)
+    # Inception net to device
+    inception_net.to(device)
+    # Inception net into eval mode
+    inception_net.eval()
     # Get real activations
     real_activations = []
     fake_activations = []
