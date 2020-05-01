@@ -138,9 +138,9 @@ class ModelWrapper(object):
                 # Get features of images from vgg16 model
                 with torch.no_grad():
                     features_real = self.vgg16(images_real)
-                # Generate random noise vector
-                noise_vector = torch.randn((images_real.shape[0], self.latent_dimensions),
-                                           dtype=torch.float32, device=device, requires_grad=True)
+                    # Generate random noise vector
+                    noise_vector = torch.randn((images_real.shape[0], self.latent_dimensions),
+                                               dtype=torch.float32, device=device, requires_grad=True)
                 # Generate fake images
                 images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
                 # Discriminator prediction real
@@ -155,6 +155,8 @@ class ModelWrapper(object):
                 loss_discriminator_fake.backward()
                 # Optimize discriminator
                 self.discriminator_optimizer.step()
+                # Reset gradients of generator to be sure
+                self.generator.zero_grad()
                 # Generate new fake images
                 images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
                 # Discriminator prediction fake
