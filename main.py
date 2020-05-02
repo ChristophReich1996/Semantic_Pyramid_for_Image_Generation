@@ -36,10 +36,10 @@ parser.add_argument('--load_discriminator_network', type=str, default=None,
 parser.add_argument('--load_pretrained_vgg16', type=str, default='pre_trained_models/vgg_places_365.pt',
                     help='Name of the pretrained (places365) vgg16 network the be loaded from model file (.pt)')
 
-parser.add_argument('--path_to_places365', type=str, default='../places365_standard',
+parser.add_argument('--path_to_places365', type=str, default='places365_standard',
                     help='Path to places365 dataset.')
 
-parser.add_argument('--epochs', type=int, default=100,
+parser.add_argument('--epochs', type=int, default=50,
                     help='Epochs to perform while training (default=100)')
 
 args = parser.parse_args()
@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
     # Init optimizers
     generator_optimizer = torch.optim.Adam(generator.parameters(), lr=args.lr)
-    discriminator_optimizer = torch.optim.Adam(discriminator.parameters(), lr=args.lr)
+    discriminator_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.1 * args.lr)
     # Print number of network parameters
     print('Number of generator parameters', sum(p.numel() for p in generator.parameters()))
     print('Number of discriminator parameters', sum(p.numel() for p in discriminator.parameters()))

@@ -103,7 +103,19 @@ class ModelWrapper(object):
         self.logger.hyperparameter['discriminator_loss'] = str(self.semantic_reconstruction_loss)
 
     def train(self, epochs: int = 20, validate_after_n_iterations: int = 100000, device: str = 'cuda',
-              save_model_after_n_epochs: int = 10) -> None:
+              save_model_after_n_epochs: int = 1, w_rec: float = 0.1, w_div: float = 0.1) -> None:
+        """
+        Training method
+        :param epochs: (int) Number of epochs to perform
+        :param validate_after_n_iterations: (int) Number of iterations after the model gets validated
+        :param device: (str) Device to be used
+        :param save_model_after_n_epochs: (int) Epochs to perform after model gets saved
+        :param w_rec: (float) Weight factor for the reconstruction loss
+        :param w_div: (float) Weight factor for the diversity loss
+        """
+        # Save weights factors
+        self.logger.hyperparameter['w_rec'] = str(w_rec)
+        self.logger.hyperparameter['w_div'] = str(w_div)
         # Adopt to batch size
         validate_after_n_iterations = (validate_after_n_iterations // self.training_dataset.batch_size) \
                                       * self.training_dataset.batch_size
@@ -151,12 +163,12 @@ class ModelWrapper(object):
                 loss_discriminator_real, loss_discriminator_fake = self.discriminator_loss(prediction_real,
                                                                                            prediction_fake)
                 # Calc gradients
-                loss_discriminator_real.backward()
-                loss_discriminator_fake.backward()
+                (loss_discriminator_real + loss_discriminator_fake).backward()
                 # Optimize discriminator
                 self.discriminator_optimizer.step()
-                # Reset gradients of generator to be sure
+                # Reset gradients of generator and discriminator
                 self.generator.zero_grad()
+                self.discriminator.zero_grad()
                 # Generate new fake images
                 images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
                 # Discriminator prediction fake
@@ -164,12 +176,12 @@ class ModelWrapper(object):
                 # Get generator loss
                 loss_generator = self.generator_loss(prediction_fake)
                 # Get diversity loss
-                loss_generator_diversity = self.diversity_loss(images_fake, noise_vector)
+                loss_generator_diversity = w_div * self.diversity_loss(images_fake, noise_vector)
                 # Get features of fake images
                 features_fake = self.vgg16(images_fake)
                 # Calc semantic reconstruction loss
                 loss_generator_semantic_reconstruction = \
-                    self.semantic_reconstruction_loss(features_real, features_fake, masks)
+                    w_rec * self.semantic_reconstruction_loss(features_real, features_fake, masks)
                 # Calc complied loss
                 loss_generator_complied = loss_generator + loss_generator_semantic_reconstruction \
                                           + loss_generator_diversity
