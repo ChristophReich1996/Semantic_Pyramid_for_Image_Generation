@@ -54,4 +54,4 @@ While training logs and models gets save automatically to the `saved_data` file.
 same folder.
 
 ## Results
-WORK IN PROGRESS...
+![Val plot](figures/60000.png")
