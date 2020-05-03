@@ -56,4 +56,4 @@ same folder.
 ## Results
 With limited compute budget I was not able to reproduce the results form the paper. The plot, shown below, was after approximately 24h of training on a single Nvidia Tesla V1000. After 24h the whole performance dropped again. However, due to the limited computing power, I was only able to train 48h.
 
-![plot](figures/600000.png")
+![Plot](figures/600000.png "plot")
