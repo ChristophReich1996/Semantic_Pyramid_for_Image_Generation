@@ -54,6 +54,6 @@ While training logs and models gets save automatically to the `saved_data` file.
 same folder.
 
 ## Results
-With limited compute budget I was not able to reproduce the results form the paper. The plot, shown below, was after approximately 24h of training on a single Nvidia Tesla V1000. After 24h the whole performance dropped again. However, due to the limited computing power, I was only able to train 48h.
+With limited compute budget I was not able to reproduce the results form the paper. The plot, shown below, was after approximately 24h of training on a single Nvidia Tesla V100. After 24h the whole performance dropped again. However, due to the limited computing power, I was only able to train 48h.
 
 ![Plot](figures/600000.png "plot")
