@@ -28,6 +28,7 @@ def get_masks_for_training(
     masks = []
     random_mask = None
     random_mask_used = False
+    spatial_varying_masks = np.random.rand() < p_random_mask
     for index, mask_shape in enumerate(reversed(mask_shapes)):
         # Full mask on case
         if index < selected_layer:
@@ -49,7 +50,7 @@ def get_masks_for_training(
         elif index > selected_layer and random_mask is None:
             if len(mask_shape) > 2:
                 # Get random mask
-                if np.random.rand() < p_random_mask:
+                if spatial_varying_masks:
                     random_mask_used = True
                     random_mask = random_shapes(mask_shape[1:],
                                                 min_shapes=1,
@@ -62,12 +63,16 @@ def get_masks_for_training(
                     random_mask = (random_mask == 255.0).float()
                 else:
                     # Make no mask
-                    random_mask = torch.ones(mask_shape[1:], dtype=torch.float32, device=device)[None, :, :]
+                    random_mask = torch.zeros(mask_shape[1:], dtype=torch.float32, device=device)[None, :, :]
                 # Save mask to list
                 masks.append(random_mask)
             else:
-                # Save mask to list
-                masks.append(torch.randint(low=0, high=2, size=mask_shape, dtype=torch.float32, device=device))
+                if spatial_varying_masks:
+                    # Save mask to list
+                    masks.append(torch.randint(low=0, high=2, size=mask_shape, dtype=torch.float32, device=device))
+                else:
+                    random_mask = torch.zeros(mask_shape, dtype=torch.float32, device=device)
+                    masks.append(random_mask)
         else:
             # Save mask to list
             if random_mask_used:
@@ -130,6 +135,7 @@ def normalize_0_1_batch(input: torch.tensor) -> torch.tensor:
     return ((input - torch.min(input_flatten, dim=1)[0][:, None, None, None]) / (
             torch.max(input_flatten, dim=1)[0][:, None, None, None] -
             torch.min(input_flatten, dim=1)[0][:, None, None, None]))
+
 
 def normalize_m1_1_batch(input: torch.tensor) -> torch.tensor:
     '''
