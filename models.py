@@ -271,19 +271,19 @@ class GeneratorResidualBlock(nn.Module):
         super(GeneratorResidualBlock, self).__init__()
         # Init main operations
         self.main_block = nn.Sequential(
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.UpsamplingBilinear2d(scale_factor=2),
             spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
             nn.LeakyReLU(negative_slope=0.2),
             spectral_norm(nn.Conv2d(in_channels=out_channels, out_channels=out_channels,
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
-            nn.LeakyReLU(negative_slope=0.2),
         )
         # Init residual mapping
         self.residual_mapping = spectral_norm(
+            nn.UpsamplingBilinear2d(scale_factor=2),
             nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 1), stride=(1, 1),
                       padding=(0, 0), bias=True))
-        # Init upsampling
-        self.upsampling = nn.UpsamplingBilinear2d(scale_factor=2)
         # Init convolution for mapping the masked features
         self.masked_feature_mapping = spectral_norm(
             nn.Conv2d(in_channels=feature_channels, out_channels=out_channels,
@@ -302,8 +302,6 @@ class GeneratorResidualBlock(nn.Module):
         # Residual mapping
         output_residual = self.residual_mapping(input)
         output_main = output_main + output_residual
-        # Upsampling
-        output_main = self.upsampling(output_main)
         # Feature path
         mapped_features = self.masked_feature_mapping(masked_features)
         # Addition step
@@ -390,4 +388,38 @@ class DiscriminatorResidualBlock(nn.Module):
         output = output + output_residual
         # Downsampling
         output = self.downsampling(output)
+        return output
+
+
+class ConditionalBatchNorm(nn.Module):
+    """
+    This class implements conditional batch normalization as used in:
+    https://arxiv.org/pdf/1707.00683.pdf
+    """
+
+    def __init__(self, num_features: int, number_of_classes: int = 365) -> None:
+        """
+        Constructor method
+        :param num_features: (int) Number of features
+        :param number_of_classes: (int) Number of classes in class tensor
+        """
+        # Call super constructor
+        super(ConditionalBatchNorm, self).__init__()
+        # Init batch normalization layer
+        self.batch_norm = nn.BatchNorm2d(num_features=num_features, affine=False, track_running_stats=False)
+        # Init linear layers to predict the affine parameters
+        self.linear_scale = nn.Linear(in_features=number_of_classes, out_features=num_features, bias=True)
+        self.linear_bias = nn.Linear(in_features=number_of_classes, out_features=num_features, bias=True)
+
+    def forward(self, input: torch.Tensor, class_id: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass
+        :param input: (torch.Tensor) 4d input feature map
+        :param class_id: (torch.Tensor) Class one-hot vector
+        :return: (torch.Tensor) Normalized output tensor
+        """
+        # Perform normalization
+        output = self.batch_norm(input)
+        # Apply affine parameters
+        output = self.linear_scale(class_id) * output + self.linear_bias(class_id)
         return output
