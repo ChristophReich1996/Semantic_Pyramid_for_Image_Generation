@@ -80,7 +80,8 @@ class ModelWrapper(object):
         # Make indexes for validation plots
         validation_plot_indexes = np.random.choice(range(len(self.validation_dataset_fid.dataset)), 49, replace=False)
         # Plot and save validation images used to plot generated images
-        self.validation_images_to_plot, _, self.validation_masks = image_label_list_of_masks_collate_function(
+        self.validation_images_to_plot, self.validation_labels, self.validation_masks \
+            = image_label_list_of_masks_collate_function(
             [self.validation_dataset_fid.dataset[index] for index in validation_plot_indexes])
 
         torchvision.utils.save_image(misc.normalize_0_1_batch(self.validation_images_to_plot),
@@ -154,7 +155,8 @@ class ModelWrapper(object):
                     noise_vector = torch.randn((images_real.shape[0], self.latent_dimensions),
                                                dtype=torch.float32, device=device, requires_grad=True)
                     # Generate fake images
-                    images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
+                    images_fake = self.generator(input=noise_vector, features=features_real, masks=masks,
+                                                 class_id=labels)
                 # Discriminator prediction real
                 prediction_real = self.discriminator(images_real, labels)
                 # Discriminator prediction fake
@@ -170,7 +172,7 @@ class ModelWrapper(object):
                 self.generator.zero_grad()
                 self.discriminator.zero_grad()
                 # Generate new fake images
-                images_fake = self.generator(input=noise_vector, features=features_real, masks=masks)
+                images_fake = self.generator(input=noise_vector, features=features_real, masks=masks, class_id=labels)
                 # Discriminator prediction fake
                 prediction_fake = self.discriminator(images_fake, labels)
                 # Get generator loss
@@ -240,7 +242,8 @@ class ModelWrapper(object):
         # Generate images
         fake_image = self.generator(input=self.validation_latents,
                                     features=self.vgg16(self.validation_images_to_plot),
-                                    masks=self.validation_masks).cpu()
+                                    masks=self.validation_masks,
+                                    class_id=self.validation_labels).cpu()
         # Save images
         torchvision.utils.save_image(misc.normalize_0_1_batch(fake_image),
                                      os.path.join(self.path_save_plots, str(self.progress_bar.n) + '.png'),
@@ -271,13 +274,14 @@ class ModelWrapper(object):
         # Init counter
         counter = 0
         # Loop over all image and masks
-        for image in images:
+        for image, label, _ in images:
             for masks in masks_levels:
                 # Generate fake images
                 fake_image = self.generator(
                     input=torch.randn(1, self.latent_dimensions, dtype=torch.float32, device=device),
                     features=self.vgg16(image),
-                    masks=masks)
+                    masks=masks,
+                    class_id=label)
                 # Save fake images
                 fake_images[counter] = fake_image.squeeze(dim=0)
                 # Increment counter
