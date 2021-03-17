@@ -14,13 +14,11 @@ import misc
 class Places365(Dataset):
 
     def __init__(self, path_to_index_file: str = '', index_file_name: str = 'train.txt',
-                 return_masks: bool = True, max_length: int = None, validation: bool = False,
-                 test: bool = False) -> None:
+                 return_masks: bool = True, max_length: int = None, validation: bool = False) -> None:
         # Save parameter
         self.path_to_index_file = path_to_index_file
         self.return_masks = return_masks
         self.validation = validation
-        self.test = test
         # Get index file
         self.file_paths = pd.read_csv(os.path.join(path_to_index_file, index_file_name)).values[:, 0]
         self.file_paths.sort()
@@ -55,9 +53,6 @@ class Places365(Dataset):
         # Make label
         label = torch.zeros(len(self.label_dict), dtype=torch.long)
         label[self.label_dict[self.file_paths[item].split('/')[1]]] = 1
-        # Return while testing no label and masks
-        if self.test:
-            return image
         # Get random masks
         if self.validation:
             masks = misc.get_masks_for_validation()
