@@ -3,11 +3,11 @@ from argparse import ArgumentParser
 # Process command line arguments
 parser = ArgumentParser()
 
-parser.add_argument('--train', type=int, default=1,
-                    help='Train network (default=1 (True)')
+parser.add_argument('--train', default=False, action='store_true',
+                    help='Train network')
 
-parser.add_argument('--test', type=int, default=1,
-                    help='Test network (default=1 (True)')
+parser.add_argument('--test', default=False, action='store_true',
+                    help='Test network')
 
 parser.add_argument('--batch_size', type=int, default=20,
                     help='Batch size of the training and test set (default=60)')
@@ -24,7 +24,7 @@ parser.add_argument('--device', type=str, default='cuda',
 parser.add_argument('--gpus_to_use', type=str, default='0',
                     help='Indexes of the GPUs to be use (default=0)')
 
-parser.add_argument('--use_data_parallel', type=int, default=0,
+parser.add_argument('--use_data_parallel', default=False, action='store_true',
                     help='Use multiple GPUs (default=0 (False))')
 
 parser.add_argument('--load_generator_network', type=str, default=None,
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     vgg16 = VGG16(args.load_pretrained_vgg16)
 
     # Init data parallel
-    if bool(args.use_data_parallel):
+    if args.use_data_parallel:
         generator = nn.DataParallel(generator)
         discriminator = nn.DataParallel(discriminator)
         vgg16 = nn.DataParallel(vgg16)
@@ -106,9 +106,9 @@ if __name__ == '__main__':
                                  generator_optimizer=generator_optimizer,
                                  discriminator_optimizer=discriminator_optimizer)
     # Perform training
-    if bool(args.train):
+    if args.train:
         model_wrapper.train(epochs=args.epochs, device=args.device)
     # Perform testing
-    if bool(args.test):
+    if args.test:
         print('FID=', model_wrapper.validate(device=args.device))
         model_wrapper.inference(device=args.device)
