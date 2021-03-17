@@ -274,7 +274,7 @@ class GeneratorResidualBlock(nn.Module):
         # Call super constructor
         super(GeneratorResidualBlock, self).__init__()
         # Init main operations
-        self.main_block = nn.Sequential(
+        self.main_block = nn.ModuleList([
             nn.LeakyReLU(negative_slope=0.2),
             ConditionalBatchNorm(num_features=in_channels, number_of_classes=number_of_classes),
             nn.UpsamplingBilinear2d(scale_factor=2),
@@ -283,31 +283,38 @@ class GeneratorResidualBlock(nn.Module):
             nn.LeakyReLU(negative_slope=0.2),
             ConditionalBatchNorm(num_features=out_channels, number_of_classes=number_of_classes),
             spectral_norm(nn.Conv2d(in_channels=out_channels, out_channels=out_channels,
-                                    kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
-        )
+                                    kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True))
+        ])
         # Init residual mapping
         self.residual_mapping = nn.Sequential(
             nn.UpsamplingBilinear2d(scale_factor=2),
-            spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 1), stride=(1, 1),
-                      padding=(0, 0), bias=True)))
+            spectral_norm(
+                nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 1), stride=(1, 1),
+                          padding=(0, 0), bias=True)))
         # Init convolution for mapping the masked features
         self.masked_feature_mapping = spectral_norm(
             nn.Conv2d(in_channels=feature_channels, out_channels=out_channels,
                       kernel_size=(3, 3), stride=(1, 1), padding=(1, 1),
                       bias=True))
 
-    def forward(self, input: torch.Tensor, masked_features: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, masked_features: torch.Tensor, class_id: torch.Tensor) -> torch.Tensor:
         '''
         Forward pass
         :param input: (torch.Tensor) Input tensor
         :param masked_features: (torch.Tensor) Masked feature tensor form vvg16
+        :param class_id: (torch.Tensor) Class one-hot vector
         :return: (torch.Tensor) Output tensor
         '''
         # Main path
-        output_main = self.main_block(input)
+        output = input
+        for layer in self.main_block:
+            if isinstance(layer, ConditionalBatchNorm):
+                output = layer(output, class_id)
+            else:
+                output = layer(output)
         # Residual mapping
         output_residual = self.residual_mapping(input)
-        output_main = output_main + output_residual
+        output_main = output + output_residual
         # Feature path
         mapped_features = self.masked_feature_mapping(masked_features)
         # Addition step
@@ -426,6 +433,11 @@ class ConditionalBatchNorm(nn.Module):
         """
         # Perform normalization
         output = self.batch_norm(input)
+        # Get affine parameters
+        scale = self.linear_scale(class_id)
+        bias = self.linear_bias(class_id)
+        scale = scale.view(scale.shape[0], scale.shape[-1], 1, 1)
+        bias = bias.view(bias.shape[0], bias.shape[-1], 1, 1)
         # Apply affine parameters
-        output = self.linear_scale(class_id) * output + self.linear_bias(class_id)
+        output = scale * output + bias
         return output
