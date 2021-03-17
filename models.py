@@ -13,12 +13,13 @@ class Generator(nn.Module):
     '''
 
     def __init__(self, out_channels: int = 3, latent_dimensions: int = 128,
-                 channels_factor: Union[int, float] = 1) -> None:
+                 channels_factor: Union[int, float] = 1, number_of_classes: int = 365) -> None:
         '''
         Constructor method
         :param out_channels: (int) Number of output channels (1 = grayscale, 3 = rgb)
         :param latent_dimensions: (int) Latent dimension size
         :param channels_factor: (int, float) Channel factor to adopt the channel size in each layer
+        :param number_of_classes: (int) Number of classes in class tensor
         '''
         super(Generator, self).__init__()
         # Save parameters
@@ -33,20 +34,21 @@ class Generator(nn.Module):
         # Init main residual path
         self.main_path = nn.ModuleList([
             GeneratorResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(512 // channels_factor),
-                                   feature_channels=513),
+                                   feature_channels=513, number_of_classes=number_of_classes),
             GeneratorResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(512 // channels_factor),
-                                   feature_channels=513),
+                                   feature_channels=513, number_of_classes=number_of_classes),
             GeneratorResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(256 // channels_factor),
-                                   feature_channels=257),
+                                   feature_channels=257, number_of_classes=number_of_classes),
             SelfAttention(channels=int(256 // channels_factor)),
             GeneratorResidualBlock(in_channels=int(256 // channels_factor), out_channels=int(128 // channels_factor),
-                                   feature_channels=129),
+                                   feature_channels=129, number_of_classes=number_of_classes),
             GeneratorResidualBlock(in_channels=int(128 // channels_factor), out_channels=int(64 // channels_factor),
-                                   feature_channels=65)
+                                   feature_channels=65, number_of_classes=number_of_classes)
         ])
         # Init final block
         self.final_block = nn.Sequential(
             nn.UpsamplingBilinear2d(scale_factor=2),
+            nn.LeakyReLU(negative_slope=0.2),
             nn.BatchNorm2d(int(64 // channels_factor)),
             spectral_norm(nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=int(64 // channels_factor),
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
@@ -57,7 +59,7 @@ class Generator(nn.Module):
         )
 
     def forward(self, input: torch.Tensor, features: List[torch.Tensor],
-                masks: List[torch.Tensor] = None) -> torch.Tensor:
+                masks: List[torch.Tensor] = None, class_id: torch.Tensor = None) -> torch.Tensor:
         '''
         Forward pass
         :param input: (torch.Tensor) Input latent tensor
@@ -91,7 +93,7 @@ class Generator(nn.Module):
                 feature = features[depth_counter]
                 mask = masks[depth_counter]
                 feature = torch.cat((feature * mask, mask), dim=1)
-                output = layer(output, feature)
+                output = layer(output, feature, class_id)
                 depth_counter -= 1
         # Final block
         output = self.final_block(output)
@@ -260,11 +262,13 @@ class GeneratorResidualBlock(nn.Module):
     Residual block
     '''
 
-    def __init__(self, in_channels: int, out_channels: int, feature_channels: int) -> None:
+    def __init__(self, in_channels: int, out_channels: int, feature_channels: int,
+                 number_of_classes: int = 365) -> None:
         '''
         Constructor
         :param in_channels: (int) Number of input channels
         :param out_channels: (int) Number of output channels
+        :param number_of_classes: (int) Number of classes in class tensor
         :param feature_channels: (int) Number of feature channels
         '''
         # Call super constructor
@@ -272,10 +276,12 @@ class GeneratorResidualBlock(nn.Module):
         # Init main operations
         self.main_block = nn.Sequential(
             nn.LeakyReLU(negative_slope=0.2),
+            ConditionalBatchNorm(num_features=in_channels, number_of_classes=number_of_classes),
             nn.UpsamplingBilinear2d(scale_factor=2),
             spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
             nn.LeakyReLU(negative_slope=0.2),
+            ConditionalBatchNorm(num_features=out_channels, number_of_classes=number_of_classes),
             spectral_norm(nn.Conv2d(in_channels=out_channels, out_channels=out_channels,
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
         )
