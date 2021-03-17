@@ -65,7 +65,6 @@ def frechet_inception_distance(dataset_real: DataLoader, generator: nn.Module, v
     for images, labels, masks in dataset_real:
         # Data to device
         images = images.to(device)
-        del labels
         for index in range(len(masks)):
             masks[index] = masks[index].to(device)
         # Normalize images
