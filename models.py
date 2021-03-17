@@ -96,7 +96,7 @@ class Generator(nn.Module):
                 depth_counter -= 1
         # Final block
         output = self.final_block(output)
-        return output
+        return output.sigmoid()
 
 
 class Discriminator(nn.Module):
@@ -225,7 +225,7 @@ class SelfAttention(nn.Module):
             nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=(1, 1), stride=(1, 1),
                       padding=(0, 0), bias=False))
         # Init gamma parameter
-        self.gamma = nn.Parameter(torch.ones(1, dtype=torch.float32))
+        self.gamma = nn.Parameter(0.1 * torch.ones(1, dtype=torch.float32))
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         '''
@@ -420,9 +420,6 @@ class ConditionalBatchNorm(nn.Module):
         # Init linear layers to predict the affine parameters
         self.linear_scale = nn.Linear(in_features=number_of_classes, out_features=num_features, bias=False)
         self.linear_bias = nn.Linear(in_features=number_of_classes, out_features=num_features, bias=False)
-        # Init weights
-        nn.init.normal_(self.linear_scale.weight, mean=0.0, std=0.0001)
-        nn.init.normal_(self.linear_bias.weight, mean=0.0, std=0.0001)
         # Apply spectral norm
         self.linear_scale = spectral_norm(self.linear_scale)
         self.linear_bias = spectral_norm(self.linear_bias)
