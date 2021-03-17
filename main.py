@@ -95,8 +95,7 @@ if __name__ == '__main__':
                        max_length=6000, validation=True),
         batch_size=args.batch_size, num_workers=args.batch_size, shuffle=False,
         collate_fn=data.image_label_list_of_masks_collate_function)
-    validation_dataset = data.Places365(path_to_index_file=args.path_to_places365, index_file_name='val.txt',
-                                        test=True)
+    validation_dataset = data.Places365(path_to_index_file=args.path_to_places365, index_file_name='val.txt')
     # Init model wrapper
     model_wrapper = ModelWrapper(generator=generator,
                                  discriminator=discriminator,
