@@ -286,10 +286,10 @@ class GeneratorResidualBlock(nn.Module):
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
         )
         # Init residual mapping
-        self.residual_mapping = spectral_norm(
+        self.residual_mapping = nn.Sequential(
             nn.UpsamplingBilinear2d(scale_factor=2),
-            nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 1), stride=(1, 1),
-                      padding=(0, 0), bias=True))
+            spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 1), stride=(1, 1),
+                      padding=(0, 0), bias=True)))
         # Init convolution for mapping the masked features
         self.masked_feature_mapping = spectral_norm(
             nn.Conv2d(in_channels=feature_channels, out_channels=out_channels,
