@@ -26,10 +26,10 @@ class Generator(nn.Module):
         self.latent_dimensions = latent_dimensions
         # Init linear input layers
         self.input_path = nn.ModuleList([
-            LinearBlock(in_features=latent_dimensions, out_features=128, feature_size=365),
-            LinearBlock(in_features=128, out_features=128, feature_size=4096),
-            nn.Linear(in_features=128, out_features=int(512 // channels_factor) * 4 * 4),
-            nn.LeakyReLU(negative_slope=0.2)
+            LinearBlock(in_features=latent_dimensions, out_features=256, feature_size=365),
+            LinearBlock(in_features=256, out_features=256, feature_size=4096),
+            nn.Sequential(spectral_norm(nn.Linear(in_features=256, out_features=int(512 // channels_factor) * 4 * 4)),
+                          nn.LeakyReLU(negative_slope=0.2))
         ])
         # Init main residual path
         self.main_path = nn.ModuleList([
@@ -48,14 +48,13 @@ class Generator(nn.Module):
         # Init final block
         self.final_block = nn.Sequential(
             nn.UpsamplingBilinear2d(scale_factor=2),
-            nn.LeakyReLU(negative_slope=0.2),
             nn.BatchNorm2d(int(64 // channels_factor)),
             spectral_norm(nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=int(64 // channels_factor),
-                                    kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
+                                    kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)),
             nn.LeakyReLU(negative_slope=0.2),
             spectral_norm(
                 nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=out_channels, kernel_size=(1, 1),
-                          stride=(1, 1), padding=(0, 0), bias=True))
+                          stride=(1, 1), padding=(0, 0), bias=False))
         )
 
     def forward(self, input: torch.Tensor, features: List[torch.Tensor],
@@ -127,7 +126,7 @@ class Discriminator(nn.Module):
         )
         # Init classification layer
         self.classification = spectral_norm(
-            nn.Linear(in_features=int(256 // channel_factor) * 2 * 2, out_features=1, bias=True))
+            nn.Linear(in_features=int(256 // channel_factor) * 2 * 2, out_features=1, bias=False))
         # Init embedding layer
         self.embedding = spectral_norm(nn.Embedding(num_embeddings=number_of_classes,
                                                     embedding_dim=int(256 // channel_factor) * 2 * 2))
@@ -218,13 +217,13 @@ class SelfAttention(nn.Module):
         # Init convolutions
         self.query_convolution = spectral_norm(
             nn.Conv2d(in_channels=channels, out_channels=channels // 8, kernel_size=(1, 1), stride=(1, 1),
-                      padding=(0, 0), bias=True))
+                      padding=(0, 0), bias=False))
         self.key_convolution = spectral_norm(
             nn.Conv2d(in_channels=channels, out_channels=channels // 8, kernel_size=(1, 1), stride=(1, 1),
-                      padding=(0, 0), bias=True))
+                      padding=(0, 0), bias=False))
         self.value_convolution = spectral_norm(
             nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=(1, 1), stride=(1, 1),
-                      padding=(0, 0), bias=True))
+                      padding=(0, 0), bias=False))
         # Init gamma parameter
         self.gamma = nn.Parameter(torch.ones(1, dtype=torch.float32))
 
@@ -275,27 +274,27 @@ class GeneratorResidualBlock(nn.Module):
         super(GeneratorResidualBlock, self).__init__()
         # Init main operations
         self.main_block = nn.ModuleList([
-            nn.LeakyReLU(negative_slope=0.2),
-            ConditionalBatchNorm(num_features=in_channels, number_of_classes=number_of_classes),
-            nn.UpsamplingBilinear2d(scale_factor=2),
             spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
-                                    kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
-            nn.LeakyReLU(negative_slope=0.2),
+                                    kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)),
             ConditionalBatchNorm(num_features=out_channels, number_of_classes=number_of_classes),
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.UpsamplingBilinear2d(scale_factor=2),
             spectral_norm(nn.Conv2d(in_channels=out_channels, out_channels=out_channels,
-                                    kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True))
+                                    kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)),
+            ConditionalBatchNorm(num_features=out_channels, number_of_classes=number_of_classes),
+            nn.LeakyReLU(negative_slope=0.2)
         ])
         # Init residual mapping
         self.residual_mapping = nn.Sequential(
             nn.UpsamplingBilinear2d(scale_factor=2),
             spectral_norm(
                 nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 1), stride=(1, 1),
-                          padding=(0, 0), bias=True)))
+                          padding=(0, 0), bias=False)))
         # Init convolution for mapping the masked features
         self.masked_feature_mapping = spectral_norm(
             nn.Conv2d(in_channels=feature_channels, out_channels=out_channels,
                       kernel_size=(3, 3), stride=(1, 1), padding=(1, 1),
-                      bias=True))
+                      bias=False))
 
     def forward(self, input: torch.Tensor, masked_features: torch.Tensor, class_id: torch.Tensor) -> torch.Tensor:
         '''
@@ -335,11 +334,11 @@ class LinearBlock(nn.Module):
         super(LinearBlock, self).__init__()
         # Init linear layer and activation
         self.main_block = nn.Sequential(
-            spectral_norm(nn.Linear(in_features=in_features, out_features=out_features, bias=True)),
+            spectral_norm(nn.Linear(in_features=in_features, out_features=out_features, bias=False)),
             nn.LeakyReLU(negative_slope=0.2)
         )
         # Init mapping the masked features
-        self.masked_feature_mapping = nn.Linear(in_features=feature_size, out_features=out_features, bias=True)
+        self.masked_feature_mapping = nn.Linear(in_features=feature_size, out_features=out_features, bias=False)
 
     def forward(self, input: torch.Tensor, masked_features: torch.Tensor) -> torch.Tensor:
         '''
@@ -374,17 +373,17 @@ class DiscriminatorResidualBlock(nn.Module):
         self.main_block = nn.Sequential(
             spectral_norm(
                 nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(3, 3), padding=(1, 1),
-                          stride=(1, 1), bias=True)),
+                          stride=(1, 1), bias=False)),
             nn.LeakyReLU(negative_slope=0.2),
             spectral_norm(
                 nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=(3, 3), padding=(1, 1),
-                          stride=(1, 1), bias=True)),
+                          stride=(1, 1), bias=False)),
             nn.LeakyReLU(negative_slope=0.2)
         )
         # Init residual mapping
         self.residual_mapping = spectral_norm(
             nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 1), padding=(0, 0),
-                      stride=(1, 1), bias=True))
+                      stride=(1, 1), bias=False))
         # Init downsmapling
         self.downsampling = nn.AvgPool2d(kernel_size=(2, 2))
 
@@ -418,11 +417,15 @@ class ConditionalBatchNorm(nn.Module):
         """
         # Call super constructor
         super(ConditionalBatchNorm, self).__init__()
-        # Init batch normalization layer
-        self.batch_norm = nn.BatchNorm2d(num_features=num_features, affine=False, track_running_stats=False)
         # Init linear layers to predict the affine parameters
-        self.linear_scale = nn.Linear(in_features=number_of_classes, out_features=num_features, bias=True)
-        self.linear_bias = nn.Linear(in_features=number_of_classes, out_features=num_features, bias=True)
+        self.linear_scale = nn.Linear(in_features=number_of_classes, out_features=num_features, bias=False)
+        self.linear_bias = nn.Linear(in_features=number_of_classes, out_features=num_features, bias=False)
+        # Init weights
+        nn.init.normal_(self.linear_scale.weight, mean=0.0, std=0.0001)
+        nn.init.normal_(self.linear_bias.weight, mean=0.0, std=0.0001)
+        # Apply spectral norm
+        self.linear_scale = spectral_norm(self.linear_scale)
+        self.linear_bias = spectral_norm(self.linear_bias)
 
     def forward(self, input: torch.Tensor, class_id: torch.Tensor) -> torch.Tensor:
         """
@@ -432,7 +435,7 @@ class ConditionalBatchNorm(nn.Module):
         :return: (torch.Tensor) Normalized output tensor
         """
         # Perform normalization
-        output = self.batch_norm(input)
+        output = (input - input.mean(dim=1, keepdim=True)) / (input.std(dim=1, keepdim=True) + 1e-08)
         # Get affine parameters
         scale = self.linear_scale(class_id)
         bias = self.linear_bias(class_id)
