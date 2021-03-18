@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
     # Init optimizers
     generator_optimizer = torch.optim.Adam(generator.parameters(), lr=args.lr)
-    discriminator_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.1 * args.lr)
+    discriminator_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.05 * args.lr)
     # Print number of network parameters
     print('Number of generator parameters', sum(p.numel() for p in generator.parameters()))
     print('Number of discriminator parameters', sum(p.numel() for p in discriminator.parameters()))
@@ -88,12 +88,12 @@ if __name__ == '__main__':
     # Init dataset
     training_dataset = DataLoader(
         data.Places365(path_to_index_file=args.path_to_places365, index_file_name='train.txt'),
-        batch_size=args.batch_size, num_workers=args.batch_size, shuffle=True,
+        batch_size=args.batch_size, num_workers=args.batch_size, shuffle=True, drop_last=True,
         collate_fn=data.image_label_list_of_masks_collate_function)
     validation_dataset_fid = DataLoader(
         data.Places365(path_to_index_file=args.path_to_places365, index_file_name='val.txt',
                        max_length=6000, validation=True),
-        batch_size=args.batch_size, num_workers=args.batch_size, shuffle=False,
+        batch_size=args.batch_size, num_workers=args.batch_size, shuffle=False, drop_last=True,
         collate_fn=data.image_label_list_of_masks_collate_function)
     validation_dataset = data.Places365(path_to_index_file=args.path_to_places365, index_file_name='val.txt')
     # Init model wrapper
