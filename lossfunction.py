@@ -54,8 +54,8 @@ class SemanticReconstructionLoss(nn.Module):
                 mask = self.max_pooling_1d(mask.unsqueeze(dim=1))
             # Normalize features
             union = torch.cat((feature_real, feature_fake), dim=0)
-            feature_real = (feature_real - union.mean()) / union.std()
-            feature_fake = (feature_fake - union.mean()) / union.std()
+            feature_real = (feature_real - union.mean()) / (union.std() + 1e-08)
+            feature_fake = (feature_fake - union.mean()) / (union.std() + 1e-08)
             # Calc l1 loss of the real and fake feature conditionalized by the corresponding mask
             loss = loss + torch.mean(torch.abs((feature_real - feature_fake) * mask))
         # Average loss with number of features
