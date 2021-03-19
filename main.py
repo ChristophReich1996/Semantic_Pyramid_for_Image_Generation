@@ -93,7 +93,7 @@ if __name__ == '__main__':
     validation_dataset_fid = DataLoader(
         data.Places365(path_to_index_file=args.path_to_places365, index_file_name='val.txt',
                        max_length=6000, validation=True),
-        batch_size=2 * args.batch_size, num_workers=2 * args.batch_size, shuffle=False,
+        batch_size=2 * args.batch_size, num_workers=2 * args.batch_size, shuffle=True,
         collate_fn=data.image_label_list_of_masks_collate_function)
     validation_dataset = data.Places365(path_to_index_file=args.path_to_places365, index_file_name='val.txt')
     # Init model wrapper
