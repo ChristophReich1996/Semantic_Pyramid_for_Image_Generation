@@ -56,8 +56,6 @@ class SemanticReconstructionLoss(nn.Module):
             feature_fake = (feature_fake - union.mean()) / (union.std() + 1e-08)
             # Calc l1 loss of the real and fake feature conditionalized by the corresponding mask
             loss = loss + torch.mean(torch.abs((feature_real - feature_fake) * mask))
-        # Average loss with number of features
-        loss = loss / len(features_real)
         return loss
 
 
@@ -100,7 +98,7 @@ class DiversityLoss(nn.Module):
         # Calc loss
         loss = self.l1_loss(latent_inputs_1, latent_inputs_2) \
                / ( self.l1_loss(images_fake_1, images_fake_2) + 1e-08)
-        return self.weight_factor * loss
+        return loss
 
 
 class LSGANGeneratorLoss(nn.Module):
