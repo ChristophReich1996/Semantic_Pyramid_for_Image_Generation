@@ -7,6 +7,7 @@ from PIL import Image
 import torchvision.transforms.functional as TVF
 import pandas as pd
 import numpy as np
+import kornia
 
 import misc
 
@@ -45,8 +46,11 @@ class Places365(Dataset):
         image = Image.open(os.path.join(self.path_to_index_file, self.file_paths[item]))
         # Image to tensor
         image = TVF.to_tensor(image)
-        # Normalize image between zero and one
-        image = (image - image.min()) / (image.max() - image.min()).clamp(min=1e-08)
+        # Normalize image
+        image = kornia.normalize(image,
+                                  mean=torch.tensor([0.485, 0.456, 0.406], device=image.device),
+                                  std=torch.tensor([0.229, 0.224, 0.225], device=image.device))
+
         # Grayscale to rgb if needed
         if image.shape[0] == 1:
             image = image.repeat_interleave(dim=0, repeats=3)

@@ -5,7 +5,6 @@ import torch.nn as nn
 from torch.nn.utils import spectral_norm
 import torch.nn.functional as F
 import torchvision
-import kornia
 
 
 class Generator(nn.Module):
@@ -184,10 +183,6 @@ class VGG16(nn.Module):
             output = input.repeat_interleave(3, dim=1)
         else:
             output = input
-        # Normalize image
-        output = kornia.normalize(output,
-                                  mean=torch.tensor([0.485, 0.456, 0.406], device=output.device),
-                                  std=torch.tensor([0.229, 0.224, 0.225], device=output.device))
         # Init list for features
         features = []
         # Feature path
