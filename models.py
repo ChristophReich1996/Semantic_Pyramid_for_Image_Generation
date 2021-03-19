@@ -225,7 +225,7 @@ class SelfAttention(nn.Module):
             nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=(1, 1), stride=(1, 1),
                       padding=(0, 0), bias=False))
         # Init gamma parameter
-        self.gamma = nn.Parameter(0.1 * torch.ones(1, dtype=torch.float32))
+        self.gamma = nn.Parameter(torch.ones(1, dtype=torch.float32))
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         '''
