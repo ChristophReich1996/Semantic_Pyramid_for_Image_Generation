@@ -437,7 +437,7 @@ class ConditionalBatchNorm(nn.Module):
         :return: (torch.Tensor) Normalized output tensor
         """
         # Perform normalization
-        output = (input - input.mean(dim=1, keepdim=True)) / (input.std(dim=1, keepdim=True) + 1e-08)
+        output = (input - input.mean(dim=(0, 2, 3), keepdim=True)) / (input.std(dim=(0, 2, 3), keepdim=True) + 1e-08)
         # Get affine parameters
         scale = self.linear_scale(class_id)
         bias = self.linear_bias(class_id)
