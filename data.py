@@ -46,6 +46,9 @@ class Places365(Dataset):
         image = Image.open(os.path.join(self.path_to_index_file, self.file_paths[item]))
         # Image to tensor
         image = TVF.to_tensor(image)
+        # Reshape image if needed
+        if image.shape[0] == 1:
+            image = image.repeat_interleave(repeats=3, dim=0)
         # Normalize image
         image = kornia.normalize(image,
                                   mean=torch.tensor([0.485, 0.456, 0.406], device=image.device),
