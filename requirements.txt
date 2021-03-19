@@ -9,3 +9,4 @@ Pillow>= 4.3.0
 pandas>= 0.24.2
 h5py>= 2.10.0
 protobuf>=3.15.6
+kornia>=0.5.0
