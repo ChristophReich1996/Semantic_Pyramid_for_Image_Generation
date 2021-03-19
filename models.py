@@ -121,12 +121,12 @@ class Discriminator(nn.Module):
             DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
             SelfAttention(channels=int(256 // channel_factor)),
             DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
-            DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
-            DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
+            DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(512 // channel_factor)),
+            DiscriminatorResidualBlock(in_channels=int(512 // channel_factor), out_channels=int(512 // channel_factor)),
         )
         # Init classification layer
         self.classification = spectral_norm(
-            nn.Linear(in_features=int(256 // channel_factor) * 2 * 2, out_features=1, bias=False))
+            nn.Linear(in_features=int(512 // channel_factor) * 2 * 2, out_features=1, bias=False))
         # Init embedding layer
         self.embedding = spectral_norm(nn.Embedding(num_embeddings=number_of_classes,
                                                     embedding_dim=int(256 // channel_factor) * 2 * 2))
