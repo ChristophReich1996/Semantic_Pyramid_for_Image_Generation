@@ -24,8 +24,8 @@ class SemanticReconstructionLoss(nn.Module):
         Get representation of the loss module
         :return: (str) String including information
         '''
-        return '{}, weights factor={}, maxpool kernel size{}' \
-            .format(self.__class__.__name__, self.weight_factor, self.max_pooling_1d.kernel_size)
+        return '{}, maxpool kernel size{}' \
+            .format(self.__class__.__name__, self.max_pooling_1d.kernel_size)
 
     def forward(self, features_real: List[torch.Tensor], features_fake: List[torch.Tensor],
                 masks: List[torch.Tensor]) -> torch.Tensor:
@@ -80,7 +80,7 @@ class DiversityLoss(nn.Module):
         Get representation of the loss module
         :return: (str) String including information
         '''
-        return '{}, weights factor={}'.format(self.__class__.__name__, self.weight_factor)
+        return self.__class__.__name__
 
     def forward(self, images_fake: torch.Tensor, latent_inputs: torch.Tensor) -> torch.Tensor:
         '''
