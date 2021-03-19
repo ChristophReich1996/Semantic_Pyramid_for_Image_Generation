@@ -97,7 +97,7 @@ class Generator(nn.Module):
                 depth_counter -= 1
         # Final block
         output = self.final_block(output)
-        return output.sigmoid()
+        return output
 
 
 class Discriminator(nn.Module):
