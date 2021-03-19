@@ -129,7 +129,7 @@ class Discriminator(nn.Module):
             nn.Linear(in_features=int(768 // channel_factor) * 2 * 2, out_features=1, bias=False))
         # Init embedding layer
         self.embedding = spectral_norm(nn.Embedding(num_embeddings=number_of_classes,
-                                                    embedding_dim=int(256 // channel_factor) * 2 * 2))
+                                                    embedding_dim=int(768 // channel_factor) * 2 * 2))
         self.embedding.weight.data.uniform_(-0.1, 0.1)
 
     def forward(self, input: torch.Tensor, class_id: torch.Tensor) -> torch.Tensor:
