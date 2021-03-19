@@ -39,7 +39,7 @@ class Generator(nn.Module):
                                    feature_channels=513, number_of_classes=number_of_classes),
             GeneratorResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(256 // channels_factor),
                                    feature_channels=257, number_of_classes=number_of_classes),
-            spectral_norm(SelfAttention(channels=int(256 // channels_factor))),
+            SelfAttention(channels=int(256 // channels_factor)),
             GeneratorResidualBlock(in_channels=int(256 // channels_factor), out_channels=int(128 // channels_factor),
                                    feature_channels=129, number_of_classes=number_of_classes),
             GeneratorResidualBlock(in_channels=int(128 // channels_factor), out_channels=int(64 // channels_factor),
@@ -117,9 +117,9 @@ class Discriminator(nn.Module):
             DiscriminatorResidualBlock(in_channels=in_channels, out_channels=int(64 // channel_factor)),
             DiscriminatorResidualBlock(in_channels=int(64 // channel_factor), out_channels=int(128 // channel_factor)),
             DiscriminatorResidualBlock(in_channels=int(128 // channel_factor), out_channels=int(256 // channel_factor)),
-            spectral_norm(SelfAttention(channels=int(256 // channel_factor))),
+            SelfAttention(channels=int(256 // channel_factor)),
             DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
-            spectral_norm(SelfAttention(channels=int(256 // channel_factor))),
+            SelfAttention(channels=int(256 // channel_factor)),
             DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
             DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(512 // channel_factor)),
             DiscriminatorResidualBlock(in_channels=int(512 // channel_factor), out_channels=int(768 // channel_factor)),
@@ -215,12 +215,15 @@ class SelfAttention(nn.Module):
         # Call super constructor
         super(SelfAttention, self).__init__()
         # Init convolutions
-        self.query_convolution = nn.Conv2d(in_channels=channels, out_channels=channels // 8, kernel_size=(1, 1),
-                                           stride=(1, 1), padding=(0, 0), bias=False)
-        self.key_convolution = nn.Conv2d(in_channels=channels, out_channels=channels // 8, kernel_size=(1, 1),
-                                         stride=(1, 1), padding=(0, 0), bias=False)
-        self.value_convolution = nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=(1, 1),
-                                           stride=(1, 1), padding=(0, 0), bias=False)
+        self.query_convolution = spectral_norm(
+            nn.Conv2d(in_channels=channels, out_channels=channels // 8, kernel_size=(1, 1),
+                      stride=(1, 1), padding=(0, 0), bias=False))
+        self.key_convolution = spectral_norm(
+            nn.Conv2d(in_channels=channels, out_channels=channels // 8, kernel_size=(1, 1),
+                      stride=(1, 1), padding=(0, 0), bias=False))
+        self.value_convolution = spectral_norm(
+            nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=(1, 1),
+                      stride=(1, 1), padding=(0, 0), bias=False))
         # Init gamma parameter
         self.gamma = nn.Parameter(torch.ones(1, dtype=torch.float32))
 
