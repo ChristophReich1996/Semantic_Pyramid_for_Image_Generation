@@ -122,11 +122,11 @@ class Discriminator(nn.Module):
             SelfAttention(channels=int(256 // channel_factor)),
             DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
             DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(512 // channel_factor)),
-            DiscriminatorResidualBlock(in_channels=int(512 // channel_factor), out_channels=int(512 // channel_factor)),
+            DiscriminatorResidualBlock(in_channels=int(512 // channel_factor), out_channels=int(768 // channel_factor)),
         )
         # Init classification layer
         self.classification = spectral_norm(
-            nn.Linear(in_features=int(512 // channel_factor) * 2 * 2, out_features=1, bias=False))
+            nn.Linear(in_features=int(768 // channel_factor) * 2 * 2, out_features=1, bias=False))
         # Init embedding layer
         self.embedding = spectral_norm(nn.Embedding(num_embeddings=number_of_classes,
                                                     embedding_dim=int(256 // channel_factor) * 2 * 2))
@@ -418,11 +418,10 @@ class ConditionalBatchNorm(nn.Module):
         # Call super constructor
         super(ConditionalBatchNorm, self).__init__()
         # Init linear layers to predict the affine parameters
-        self.linear_scale = nn.Linear(in_features=number_of_classes, out_features=num_features, bias=False)
-        self.linear_bias = nn.Linear(in_features=number_of_classes, out_features=num_features, bias=False)
-        # Apply spectral norm
-        self.linear_scale = spectral_norm(self.linear_scale)
-        self.linear_bias = spectral_norm(self.linear_bias)
+        self.linear_scale = spectral_norm(
+            nn.Linear(in_features=number_of_classes, out_features=num_features, bias=False))
+        self.linear_bias = spectral_norm(
+            nn.Linear(in_features=number_of_classes, out_features=num_features, bias=False))
 
     def forward(self, input: torch.Tensor, class_id: torch.Tensor) -> torch.Tensor:
         """
