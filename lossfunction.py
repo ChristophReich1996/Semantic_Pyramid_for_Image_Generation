@@ -9,14 +9,12 @@ class SemanticReconstructionLoss(nn.Module):
     Implementation of the proposed semantic reconstruction loss
     '''
 
-    def __init__(self, weight_factor: float = 0.1) -> None:
+    def __init__(self) -> None:
         '''
         Constructor
         '''
         # Call super constructor
         super(SemanticReconstructionLoss, self).__init__()
-        # Save parameter
-        self.weight_factor = weight_factor
         # Init max pooling operations. Since the features have various dimensions, 2d & 1d max pool as the be init
         self.max_pooling_2d = nn.MaxPool2d(2)
         self.max_pooling_1d = nn.MaxPool1d(2)
@@ -60,7 +58,7 @@ class SemanticReconstructionLoss(nn.Module):
             loss = loss + torch.mean(torch.abs((feature_real - feature_fake) * mask))
         # Average loss with number of features
         loss = loss / len(features_real)
-        return self.weight_factor * loss
+        return loss
 
 
 class DiversityLoss(nn.Module):
@@ -68,18 +66,14 @@ class DiversityLoss(nn.Module):
     Implementation of the mini-batch diversity loss
     '''
 
-    def __init__(self, weight_factor: float = 0.1) -> None:
+    def __init__(self) -> None:
         '''
         Constructor
         '''
         # Call super constructor
         super(DiversityLoss, self).__init__()
-        # Save parameter
-        self.weight_factor = weight_factor
         # Init l1 loss module
         self.l1_loss = nn.L1Loss(reduction='mean')
-        # Init epsilon for numeric stability
-        self.epsilon = 1e-08
 
     def __repr__(self):
         '''
@@ -104,8 +98,8 @@ class DiversityLoss(nn.Module):
         latent_inputs_1 = latent_inputs[:latent_inputs.shape[0] // 2]
         latent_inputs_2 = latent_inputs[latent_inputs.shape[0] // 2:]
         # Calc loss
-        loss = self.l1_loss(latent_inputs_1, latent_inputs_2) / (
-                self.l1_loss(images_fake_1, images_fake_2) + self.epsilon)
+        loss = self.l1_loss(latent_inputs_1, latent_inputs_2) \
+               / ( self.l1_loss(images_fake_1, images_fake_2) + 1e-08)
         return self.weight_factor * loss
 
 
