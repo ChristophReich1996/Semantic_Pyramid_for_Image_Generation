@@ -12,7 +12,7 @@ parser.add_argument('--test', default=False, action='store_true',
 parser.add_argument('--batch_size', type=int, default=20,
                     help='Batch size of the training and test set (default=60)')
 
-parser.add_argument('--lr', type=float, default=1e-04,
+parser.add_argument('--lr', type=float, default=1e-05,
                     help='Main learning rate of the adam optimizer (default=1e-04)')
 
 parser.add_argument('--channel_factor', type=float, default=1.0,
