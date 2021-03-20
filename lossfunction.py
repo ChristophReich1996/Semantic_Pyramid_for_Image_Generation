@@ -2,6 +2,7 @@ from typing import List, Tuple
 
 import torch
 import torch.nn as nn
+import kornia
 
 
 class SemanticReconstructionLoss(nn.Module):
@@ -52,8 +53,7 @@ class SemanticReconstructionLoss(nn.Module):
                 mask = self.max_pooling_1d(mask.unsqueeze(dim=1))
             # Normalize features
             union = torch.cat((feature_real, feature_fake), dim=0)
-            feature_real = (feature_real - union.mean()) / (union.std() + 1e-08)
-            feature_fake = (feature_fake - union.mean()) / (union.std() + 1e-08)
+            feature_real, feature_fake = kornia.normalize_min_max(union).split(split_size=feature_fake.shape[0], dim=0)
             # Calc l1 loss of the real and fake feature conditionalized by the corresponding mask
             loss = loss + torch.mean(torch.abs((feature_real - feature_fake) * mask))
         return loss
@@ -71,7 +71,7 @@ class DiversityLoss(nn.Module):
         # Call super constructor
         super(DiversityLoss, self).__init__()
         # Init l1 loss module
-        self.l1_loss = nn.L1Loss(reduction='mean')
+        self.l1_loss = nn.L1Loss(reduction='none')
 
     def __repr__(self):
         '''
@@ -88,7 +88,8 @@ class DiversityLoss(nn.Module):
         :return: (torch.Tensor) Loss
         '''
         # Check batch sizes
-        assert images_fake.shape[0] > 1
+        assert (images_fake.shape[0] > 1) and ((images_fake.shape[0] % 2) == 0), \
+            "Batch size must be bigger than one and dividable by 2"
         # Divide mini-batch of images into two paris
         images_fake_1 = images_fake[:images_fake.shape[0] // 2]
         images_fake_2 = images_fake[images_fake.shape[0] // 2:]
@@ -96,8 +97,8 @@ class DiversityLoss(nn.Module):
         latent_inputs_1 = latent_inputs[:latent_inputs.shape[0] // 2]
         latent_inputs_2 = latent_inputs[latent_inputs.shape[0] // 2:]
         # Calc loss
-        loss = self.l1_loss(latent_inputs_1, latent_inputs_2) \
-               / ( self.l1_loss(images_fake_1, images_fake_2) + 1e-08)
+        loss = (self.l1_loss(latent_inputs_1, latent_inputs_2)
+                / (self.l1_loss(images_fake_1, images_fake_2) + 1e-08)).mean()
         return loss
 
 
@@ -117,13 +118,13 @@ class LSGANGeneratorLoss(nn.Module):
         '''
         return str(self.__class__.__name__)
 
-    def forward(self, images_fake: torch.Tensor) -> torch.Tensor:
+    def forward(self, prediction_fake: torch.Tensor) -> torch.Tensor:
         '''
         Forward pass
-        :param images_fake: (torch.Tensor) Fake images generated
+        :param prediction_fake: (torch.Tensor) Fake images generated
         :return: (torch.Tensor) Loss
         '''
-        return 0.5 * torch.mean((images_fake - 1.0) ** 2)
+        return 0.5 * torch.mean((prediction_fake - 1.0) ** 2)
 
 
 class LSGANDiscriminatorLoss(nn.Module):
@@ -142,11 +143,12 @@ class LSGANDiscriminatorLoss(nn.Module):
         '''
         return str(self.__class__.__name__)
 
-    def forward(self, images_real: torch.Tensor, images_fake: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, prediction_real: torch.Tensor, prediction_fake: torch.Tensor) -> Tuple[
+        torch.Tensor, torch.Tensor]:
         '''
         Forward pass. Loss parts are not summed up to not retain the whole backward graph later.
-        :param images_real: (torch.Tensor) Real images
-        :param images_fake: (torch.Tensor) Fake images generated
+        :param prediction_real: (torch.Tensor) Real images
+        :param prediction_fake: (torch.Tensor) Fake images generated
         :return: (torch.Tensor) Loss real part and loss fake part
         '''
-        return 0.5 * torch.mean((images_real - 1.0) ** 2), 0.5 * torch.mean(images_fake ** 2)
+        return 0.5 * torch.mean((prediction_real - 1.0) ** 2), 0.5 * torch.mean(prediction_fake ** 2)
