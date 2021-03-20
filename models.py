@@ -47,7 +47,7 @@ class Generator(nn.Module):
         ])
         # Init final block
         self.final_block = nn.Sequential(
-            nn.UpsamplingNearest2d(scale_factor=2),
+            nn.UpsamplingBilinear2d(scale_factor=2),
             spectral_norm(nn.BatchNorm2d(int(64 // channels_factor))),
             spectral_norm(nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=int(64 // channels_factor),
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)),
@@ -278,7 +278,7 @@ class GeneratorResidualBlock(nn.Module):
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)),
             ConditionalBatchNorm(num_features=out_channels, number_of_classes=number_of_classes),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.UpsamplingNearest2d(scale_factor=2),
+            nn.UpsamplingBilinear2d(scale_factor=2),
             spectral_norm(nn.Conv2d(in_channels=out_channels, out_channels=out_channels,
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)),
             ConditionalBatchNorm(num_features=out_channels, number_of_classes=number_of_classes),
@@ -286,7 +286,7 @@ class GeneratorResidualBlock(nn.Module):
         ])
         # Init residual mapping
         self.residual_mapping = nn.Sequential(
-            nn.UpsamplingNearest2d(scale_factor=2),
+            nn.UpsamplingBilinear2d(scale_factor=2),
             spectral_norm(
                 nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 1), stride=(1, 1),
                           padding=(0, 0), bias=False)))
