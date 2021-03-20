@@ -172,10 +172,10 @@ class ModelWrapper(object):
                 (loss_discriminator_real + loss_discriminator_fake).backward()
                 # Optimize discriminator
                 self.discriminator_optimizer.step()
+                ############ Generator training ############
                 # Reset gradients of generator and discriminator
                 self.generator.zero_grad()
                 self.discriminator.zero_grad()
-                ############ Generator training ############
                 # Init new noise vector
                 noise_vector = torch.randn((images_real.shape[0], self.latent_dimensions),
                                            dtype=torch.float32, device=device, requires_grad=True)
