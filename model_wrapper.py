@@ -303,3 +303,5 @@ class ModelWrapper(object):
         torchvision.utils.save_image(
             misc.normalize_0_1_batch(fake_images),
             os.path.join(self.path_save_plots, 'predictions_{}.png'.format(str(datetime.now()))), nrow=7)
+        # Generator back into train mode
+        self.generator.train()
