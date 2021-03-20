@@ -64,6 +64,9 @@ class ModelWrapper(object):
         self.diversity_loss = diversity_loss
         self.latent_dimensions = self.generator.module.latent_dimensions \
             if isinstance(self.generator, nn.DataParallel) else self.generator.latent_dimensions
+        # Calc no gradients for weights of vgg16
+        for parameter in self.vgg16.parameters():
+            parameter.requires_grad = False
         # Init logger
         self.logger = Logger()
         # Make directories to save logs, plots and models during training
