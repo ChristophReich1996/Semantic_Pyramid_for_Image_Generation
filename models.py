@@ -123,13 +123,16 @@ class Discriminator(nn.Module):
             DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(256 // channel_factor)),
             DiscriminatorResidualBlock(in_channels=int(256 // channel_factor), out_channels=int(512 // channel_factor)),
             DiscriminatorResidualBlock(in_channels=int(512 // channel_factor), out_channels=int(768 // channel_factor)),
+            nn.Flatten(start_dim=1),
+            spectral_norm(nn.Linear(in_features=int(768 // channel_factor) * 2 * 2, out_features=128, bias=False)),
+            nn.LeakyReLU(negative_slope=0.2)
         )
         # Init classification layer
         self.classification = spectral_norm(
-            nn.Linear(in_features=int(768 // channel_factor) * 2 * 2, out_features=1, bias=False))
+            nn.Linear(in_features=128, out_features=1, bias=False))
         # Init embedding layer
         self.embedding = spectral_norm(nn.Embedding(num_embeddings=number_of_classes,
-                                                    embedding_dim=int(768 // channel_factor) * 2 * 2))
+                                                    embedding_dim=128))
         self.embedding.weight.data.uniform_(-0.1, 0.1)
 
     def forward(self, input: torch.Tensor, class_id: torch.Tensor) -> torch.Tensor:
@@ -143,8 +146,8 @@ class Discriminator(nn.Module):
         # Reshape output into two dimensions
         output = output.flatten(start_dim=1)
         # Perform embedding
-        output_embedding = self.embedding(class_id)
-        output_embedding = (output.unsqueeze(dim=1) * output_embedding).sum(dim=1)
+        output_embedding = self.embedding(class_id.argmax(dim=-1, keepdim=True))
+        output_embedding = output * output_embedding
         # Classification path
         output = self.classification(output)
         return output + output_embedding
