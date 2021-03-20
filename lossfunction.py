@@ -47,13 +47,18 @@ class SemanticReconstructionLoss(nn.Module):
                 feature_real = self.max_pooling_2d(feature_real)
                 feature_fake = self.max_pooling_2d(feature_fake)
                 mask = self.max_pooling_2d(mask)
+                # Normalize features
+                union = torch.cat((feature_real, feature_fake), dim=0)
+                feature_real, feature_fake = \
+                    kornia.normalize_min_max(union).split(split_size=feature_fake.shape[0], dim=0)
             else:
                 feature_real = self.max_pooling_1d(feature_real.unsqueeze(dim=1))
                 feature_fake = self.max_pooling_1d(feature_fake.unsqueeze(dim=1))
                 mask = self.max_pooling_1d(mask.unsqueeze(dim=1))
-            # Normalize features
-            union = torch.cat((feature_real, feature_fake), dim=0)
-            feature_real, feature_fake = kornia.normalize_min_max(union).split(split_size=feature_fake.shape[0], dim=0)
+                # Normalize features
+                union = torch.cat((feature_real, feature_fake), dim=0)
+                feature_real, feature_fake = \
+                    kornia.normalize_min_max(union.unsqueeze(dim=1)).split(split_size=feature_fake.shape[0], dim=0)
             # Calc l1 loss of the real and fake feature conditionalized by the corresponding mask
             loss = loss + torch.mean(torch.abs((feature_real - feature_fake) * mask))
         return loss
@@ -71,7 +76,7 @@ class DiversityLoss(nn.Module):
         # Call super constructor
         super(DiversityLoss, self).__init__()
         # Init l1 loss module
-        self.l1_loss = nn.L1Loss(reduction='none')
+        self.l1_loss = nn.L1Loss(reduction='mean')
 
     def __repr__(self):
         '''
@@ -88,8 +93,7 @@ class DiversityLoss(nn.Module):
         :return: (torch.Tensor) Loss
         '''
         # Check batch sizes
-        assert (images_fake.shape[0] > 1) and ((images_fake.shape[0] % 2) == 0), \
-            "Batch size must be bigger than one and dividable by 2"
+        assert images_fake.shape[0] > 1
         # Divide mini-batch of images into two paris
         images_fake_1 = images_fake[:images_fake.shape[0] // 2]
         images_fake_2 = images_fake[images_fake.shape[0] // 2:]
@@ -97,9 +101,11 @@ class DiversityLoss(nn.Module):
         latent_inputs_1 = latent_inputs[:latent_inputs.shape[0] // 2]
         latent_inputs_2 = latent_inputs[latent_inputs.shape[0] // 2:]
         # Calc loss
-        loss = (self.l1_loss(latent_inputs_1, latent_inputs_2)
-                / (self.l1_loss(images_fake_1, images_fake_2) + 1e-08)).mean()
+        loss = self.l1_loss(latent_inputs_1, latent_inputs_2) \
+               / ( self.l1_loss(images_fake_1, images_fake_2) + 1e-08)
         return loss
+
+
 
 
 class LSGANGeneratorLoss(nn.Module):
