@@ -138,6 +138,7 @@ class ModelWrapper(object):
         # Main loop
         for epoch in range(epochs):
             for images_real, labels, masks in self.training_dataset:
+                ############ Discriminator training ############
                 # Update progress bar with batch size
                 self.progress_bar.update(n=images_real.shape[0])
                 # Reset gradients
@@ -171,6 +172,10 @@ class ModelWrapper(object):
                 # Reset gradients of generator and discriminator
                 self.generator.zero_grad()
                 self.discriminator.zero_grad()
+                ############ Generator training ############
+                # Init new noise vector
+                noise_vector = torch.randn((images_real.shape[0], self.latent_dimensions),
+                                           dtype=torch.float32, device=device, requires_grad=True)
                 # Generate new fake images
                 images_fake = self.generator(input=noise_vector, features=features_real, masks=masks,
                                              class_id=labels.float())
