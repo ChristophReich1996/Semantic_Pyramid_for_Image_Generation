@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Optional
 
 import torch
 import torch.nn as nn
@@ -158,13 +158,15 @@ class VGG16(nn.Module):
     Implementation of a pre-trained VGG 16 model which outputs intermediate feature activations of the model.
     '''
 
-    def __init__(self, path_to_pre_trained_model: str = None) -> None:
+    def __init__(self, path_to_pre_trained_model: Optional[str] = None, return_output: Optional[bool] = False) -> None:
         '''
         Constructor
         :param pretrained: (bool) True if the default pre trained vgg16 model pre trained in image net should be used
         '''
         # Call super constructor
         super(VGG16, self).__init__()
+        # Save parameter
+        self.return_output = return_output
         # Load model
         if path_to_pre_trained_model is not None:
             self.vgg16 = torch.load(path_to_pre_trained_model)
@@ -202,6 +204,8 @@ class VGG16(nn.Module):
             output = layer(output)
             if index == 3 or index == 6:
                 features.append(output)
+        if self.return_output:
+            return output
         return features
 
 
