@@ -105,7 +105,7 @@ def main():
             transforms.ToTensor(),
             normalize,
         ])),
-        batch_size=args.batch_size, shuffle=False,
+        batch_size=args.batch_size // 2, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
     # define loss function (criterion) and pptimizer
@@ -185,6 +185,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
                 data_time=data_time, loss=losses, top1=top1, top5=top5))
 
 
+@torch.no_grad()
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
     losses = AverageMeter()
