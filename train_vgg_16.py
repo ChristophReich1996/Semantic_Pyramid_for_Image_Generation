@@ -31,7 +31,7 @@ parser.add_argument('--arch', '-a', metavar='ARCH', default='vgg16',
                     help='model architecture: ' +
                         ' | '.join(model_names) +
                         ' (default: resnet18)')
-parser.add_argument('-j', '--workers', default=6, type=int, metavar='N',
+parser.add_argument('-j', '--workers', default=64, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
                     help='number of total epochs to run')
@@ -91,7 +91,7 @@ def main():
 
     train_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder(traindir, transforms.Compose([
-            transforms.RandomSizedCrop(224),
+            transforms.Scale(256),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             normalize,
@@ -102,7 +102,6 @@ def main():
     val_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder(valdir, transforms.Compose([
             transforms.Scale(256),
-            transforms.CenterCrop(224),
             transforms.ToTensor(),
             normalize,
         ])),
