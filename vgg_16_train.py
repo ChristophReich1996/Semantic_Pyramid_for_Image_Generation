@@ -19,6 +19,8 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
+from models import VGG16
+
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
@@ -26,10 +28,6 @@ model_names = sorted(name for name in models.__dict__
 parser = argparse.ArgumentParser(description='PyTorch Places365 Training')
 parser.add_argument('--data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('--arch', '-a', metavar='ARCH', default='vgg16',
-                    help='model architecture: ' +
-                         ' | '.join(model_names) +
-                         ' (default: resnet18)')
 parser.add_argument('-j', '--workers', default=64, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
@@ -38,7 +36,7 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
-parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.0001, type=float,
                     metavar='LR', help='initial learning rate')
 parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
@@ -59,14 +57,8 @@ def main():
     args = parser.parse_args()
     print(args)
     # create model
-    print("=> creating model '{}'".format(args.arch))
-    model = models.__dict__[args.arch](pretrained=False)
-    model.classifier[-1] = nn.Linear(in_features=4096, out_features=365, bias=True)
-    if args.arch.lower().startswith('alexnet') or args.arch.lower().startswith('vgg'):
-        model.features = torch.nn.DataParallel(model.features)
-        model.cuda()
-    else:
-        model = torch.nn.DataParallel(model).cuda()
+    model = VGG16('pre_trained_models/vgg_places_365.pt', return_output=True)
+    model = torch.nn.DataParallel(model).cuda()
     print(model)
     # optionally resume from a checkpoint
     if args.resume:
@@ -116,6 +108,9 @@ def main():
     if args.evaluate:
         validate(val_loader, model, criterion)
         return
+
+    # evaluate on validation set
+    validate(val_loader, model, criterion)
 
     for epoch in range(args.start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch)
