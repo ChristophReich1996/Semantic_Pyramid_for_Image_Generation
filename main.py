@@ -33,7 +33,7 @@ parser.add_argument('--load_generator_network', type=str, default=None,
 parser.add_argument('--load_discriminator_network', type=str, default=None,
                     help='Name of the discriminator network the be loaded from model file (.pt) (default=None)')
 
-parser.add_argument('--load_pretrained_vgg16', type=str, default='pre_trained_models/vgg_places_365.pt',
+parser.add_argument('--load_pretrained_vgg16', type=str, default='pre_trained_models/vgg_places_365_fine_tuned.pt',
                     help='Name of the pretrained (places365) vgg16 network the be loaded from model file (.pt)')
 
 parser.add_argument('--path_to_places365', type=str, default='places365_standard',
@@ -70,8 +70,8 @@ if __name__ == '__main__':
         discriminator = torch.load(args.load_discriminator_network)
         if isinstance(discriminator, nn.DataParallel):
             discriminator = discriminator.module
-    vgg16 = VGG16(args.load_pretrained_vgg16)
-
+    vgg16 = VGG16()
+    vgg16.load_state_dict(torch.load(args.load_pretrained_vgg16, map_location="cpu"))
     # Init data parallel
     if args.use_data_parallel:
         generator = nn.DataParallel(generator)
