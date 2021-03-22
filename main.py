@@ -27,11 +27,8 @@ parser.add_argument('--gpus_to_use', type=str, default='0',
 parser.add_argument('--use_data_parallel', default=False, action='store_true',
                     help='Use multiple GPUs (default=0 (False))')
 
-parser.add_argument('--load_generator_network', type=str, default=None,
-                    help='Name of the generator network the be loaded from model file (.pt) (default=None)')
-
-parser.add_argument('--load_discriminator_network', type=str, default=None,
-                    help='Name of the discriminator network the be loaded from model file (.pt) (default=None)')
+parser.add_argument('--load_checkpoint', type=str, default=None,
+                    help='Path to checkpoint to be loaded (default=None)')
 
 parser.add_argument('--load_pretrained_vgg16', type=str, default='pre_trained_models/vgg_places_365_fine_tuned.pt',
                     help='Name of the pretrained (places365) vgg16 network the be loaded from model file (.pt)')
@@ -58,29 +55,23 @@ import data
 
 if __name__ == '__main__':
     # Init models
-    if args.load_generator_network is None:
-        generator = Generator(channels_factor=args.channel_factor)
-    else:
-        generator = torch.load(args.load_generator_network)
-        if isinstance(generator, nn.DataParallel):
-            generator = generator.module
-    if args.load_discriminator_network is None:
-        discriminator = Discriminator(channel_factor=args.channel_factor)
-    else:
-        discriminator = torch.load(args.load_discriminator_network)
-        if isinstance(discriminator, nn.DataParallel):
-            discriminator = discriminator.module
+    generator = Generator(channels_factor=args.channel_factor)
+    discriminator = Discriminator(channel_factor=args.channel_factor)
     vgg16 = VGG16()
-    vgg16.load_state_dict(torch.load(args.load_pretrained_vgg16, map_location="cpu"))
-    # Init data parallel
-    if args.use_data_parallel:
-        generator = nn.DataParallel(generator)
-        discriminator = nn.DataParallel(discriminator)
-        vgg16 = nn.DataParallel(vgg16)
+    vgg16.load_state_dict(torch.load(args.load_pretrained_vgg16, map_location='cpu'))
 
     # Init optimizers
     generator_optimizer = torch.optim.Adam(generator.parameters(), lr=args.lr)
     discriminator_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.1 * args.lr)
+
+    # Load checkpoint
+    if args.load_checkpoint is not None:
+        checkpoint = torch.load(args.load_checkpoint, map_location='cpu')
+        generator.load_state_dict(checkpoint['generator'])
+        discriminator.load_state_dict(checkpoint['discriminator'])
+        generator_optimizer.load_state_dict(checkpoint['generator_optimizer'])
+        discriminator_optimizer.load_state_dict(checkpoint['discriminator_optimizer'])
+
     # Print number of network parameters
     print('Number of generator parameters', sum(p.numel() for p in generator.parameters()))
     print('Number of discriminator parameters', sum(p.numel() for p in discriminator.parameters()))
@@ -96,6 +87,13 @@ if __name__ == '__main__':
         batch_size=2 * args.batch_size, num_workers=2 * args.batch_size, shuffle=True,
         collate_fn=data.image_label_list_of_masks_collate_function)
     validation_dataset = data.Places365(path_to_index_file=args.path_to_places365, index_file_name='val.txt')
+
+    # Init data parallel
+    if args.use_data_parallel:
+        generator = nn.DataParallel(generator)
+        discriminator = nn.DataParallel(discriminator)
+        vgg16 = nn.DataParallel(vgg16)
+
     # Init model wrapper
     model_wrapper = ModelWrapper(generator=generator,
                                  discriminator=discriminator,
@@ -105,9 +103,11 @@ if __name__ == '__main__':
                                  validation_dataset_fid=validation_dataset_fid,
                                  generator_optimizer=generator_optimizer,
                                  discriminator_optimizer=discriminator_optimizer)
+
     # Perform training
     if args.train:
         model_wrapper.train(epochs=args.epochs, device=args.device)
+
     # Perform testing
     if args.test:
         print('FID=', model_wrapper.validate(device=args.device))
