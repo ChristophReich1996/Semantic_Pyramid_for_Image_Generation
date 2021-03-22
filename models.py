@@ -172,6 +172,7 @@ class VGG16(nn.Module):
             self.vgg16 = torch.load(path_to_pre_trained_model)
         else:
             self.vgg16 = torchvision.models.vgg16(pretrained=False)
+            self.vgg16.classifier[-1] = nn.Linear(in_features=4096, out_features=365, bias=True)
         # Convert feature module into model list
         self.vgg16.features = nn.ModuleList(list(self.vgg16.features))
         # Convert classifier into module list
