@@ -126,10 +126,9 @@ def main():
         best_prec1 = max(prec1, best_prec1)
         save_checkpoint({
             'epoch': epoch + 1,
-            'arch': args.arch,
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
-        }, is_best, args.arch.lower())
+        }, is_best, "VGG_16")
 
 
 def train(train_loader, model, criterion, optimizer, epoch):
