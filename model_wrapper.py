@@ -225,8 +225,14 @@ class ModelWrapper(object):
                     # Save all logs
                     self.logger.save_metrics(self.path_save_metrics)
             if epoch % save_model_after_n_epochs == 0:
-                torch.save(self.generator, os.path.join(self.path_save_models, 'generator_{}.pt'.format(epoch)))
-                torch.save(self.discriminator, os.path.join(self.path_save_models, 'discriminator_{}.pt'.format(epoch)))
+                torch.save(
+                    {"generator": self.generator.module.state_dict()
+                    if isinstance(self.generator, nn.DataParallel) else self.generator.state_dict(),
+                     "discriminator": self.discriminator.module.state_dict()
+                     if isinstance(self.discriminator, nn.DataParallel) else self.discriminator.state_dict(),
+                     "generator_optimizer": self.generator_optimizer.state_dict(),
+                     "discriminator_optimizer": self.discriminator_optimizer.state_dict()},
+                    os.path.join(self.path_save_models, 'checkpoint_{}.pt'.format(epoch)))
             self.inference(device=device)
             # Save all logs
             self.logger.save_metrics(self.path_save_metrics)
