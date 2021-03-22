@@ -21,8 +21,18 @@ run the following script
 ```
 sh download_places365.sh
 ```
-## Pre-trained VGG 16 model
-To download and convert the VGG 16 model pre-trained on the places dataset run the following command
+## Pre-trained VGG-16 model
+The original VGG-16 provided by the [MIT CV group](https://github.com/CSAILVision/places365) is trained on a resolution
+of 224 x 224. This implementation, however, utilizes the native resolution (256 x 256) of the 
+[places365](http://places2.csail.mit.edu/download.html) dataset. This issue is addressed by fine-tuning the pre-trained 
+VGG-16 network on the higher resolution.
+
+The necessary fine-tuned VGG-16 state dict can be downloaded [here]().
+
+To download and convert the original VGG-16 model pre-trained on the lower resolution (224 x 224) places dataset run the 
+following command. The downloaded model can be fine-tuned on the higher resolution by using the 
+[training script](/vgg_16_train.py), which is based on the 
+[original training script](https://github.com/CSAILVision/places365/blob/master/train_placesCNN.py).
 ```
 sh download_pretrained_vgg16.sh
 ```
