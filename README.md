@@ -27,7 +27,7 @@ of 224 x 224. This implementation, however, utilizes the native resolution (256 
 [places365](http://places2.csail.mit.edu/download.html) dataset. This issue is addressed by fine-tuning the pre-trained 
 VGG-16 network on the higher resolution.
 
-The necessary fine-tuned VGG-16 state dict can be downloaded [here]().
+The necessary fine-tuned VGG-16 state dict can be downloaded [here](https://studtudarmstadtde-my.sharepoint.com/:u:/g/personal/christoph_reich_stud_tu-darmstadt_de/EaqFAsNXcYZNgcoYxwLQJrIB0YLsWuiT8rD4I3HnWrwhNg?e=YLmMGn).
 
 To download and convert the original VGG-16 model pre-trained on the lower resolution (224 x 224) places dataset run the 
 following command. The downloaded model can be fine-tuned on the higher resolution by using the 
