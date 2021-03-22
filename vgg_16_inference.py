@@ -12,7 +12,8 @@ if __name__ == '__main__':
         batch_size=10, num_workers=10, shuffle=True, drop_last=True,
         collate_fn=image_label_list_of_masks_collate_function)
     # Init VGG
-    vgg16 = VGG16('pre_trained_models/vgg_places_365.pt')  # Not fine-tuned model!
+    vgg16 = VGG16(return_output=True)
+    vgg16.load_state_dict(torch.load('vgg_places365_fine_tuned.pt', map_location="cpu"))
     vgg16.eval()
     # Get dataset samples
     images, labels, _ = next(iter(training_dataset))
