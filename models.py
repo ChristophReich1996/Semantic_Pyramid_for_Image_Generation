@@ -56,6 +56,8 @@ class Generator(nn.Module):
                 nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=out_channels, kernel_size=(1, 1),
                           stride=(1, 1), padding=(0, 0), bias=False))
         )
+        # Init embedding layer for label
+        self.embedding = nn.Embedding(num_embeddings=number_of_classes, embedding_dim=number_of_classes)
 
     def forward(self, input: torch.Tensor, features: List[torch.Tensor],
                 masks: List[torch.Tensor] = None, class_id: torch.Tensor = None) -> torch.Tensor:
@@ -65,6 +67,8 @@ class Generator(nn.Module):
         :param features: (List[torch.Tensor]) List of vgg16 features
         :return: (torch.Tensor) Generated output image
         '''
+        # Embed class label
+        class_id = self.embedding(class_id)
         # Init depth counter
         depth_counter = len(features) - 1
         # Input path
