@@ -68,7 +68,7 @@ class Generator(nn.Module):
         :return: (torch.Tensor) Generated output image
         '''
         # Embed class label
-        class_id = self.embedding(class_id.long())
+        class_id = self.embedding(class_id.argmax(dim=-1))
         # Init depth counter
         depth_counter = len(features) - 1
         # Input path
