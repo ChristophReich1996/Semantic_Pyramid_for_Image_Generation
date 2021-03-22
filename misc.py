@@ -3,6 +3,7 @@ from typing import List, Tuple
 import torch
 import torch.nn.functional as F
 import numpy as np
+import random
 from skimage.draw import random_shapes
 import os
 import json
@@ -23,7 +24,7 @@ def get_masks_for_training(
     '''
     # Select layer where no masking is used. Every output from the deeper layers get mapped out. Every higher layer gets
     # masked by a random shape
-    selected_stage = np.random.choice(range(len(mask_shapes)))
+    selected_stage = random.choice(range(len(mask_shapes)))
     # Make masks
     masks = []
     # Apply spatial varying masks
