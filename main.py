@@ -55,8 +55,8 @@ import data
 
 if __name__ == '__main__':
     # Init models
-    generator = Generator(channels_factor=args.channel_factor)
-    discriminator = Discriminator(channel_factor=args.channel_factor)
+    generator = Generator(channels_factor=args.channel_factor).cuda()
+    discriminator = Discriminator(channel_factor=args.channel_factor).cuda()
     vgg16 = VGG16()
     vgg16.load_state_dict(torch.load(args.load_pretrained_vgg16, map_location='cpu'))
 
