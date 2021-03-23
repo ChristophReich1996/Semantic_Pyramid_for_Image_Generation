@@ -70,7 +70,7 @@ def get_masks_for_training(
 def get_masks_for_validation(mask_shapes: Tuple[Tuple[int, int, int], ...] =
                              ((1, 128, 128), (1, 64, 64), (1, 32, 32), (1, 16, 16), (1, 8, 8), (4096,),
                               (365,)), device: str = 'cpu', add_batch_size: bool = False) -> List[torch.Tensor]:
-    return get_masks_for_inference(stage_index_to_choose=np.random.choice(range(len(mask_shapes))),
+    return get_masks_for_inference(stage_index_to_choose=random.choice(range(len(mask_shapes))),
                                    mask_shapes=mask_shapes, device=device, add_batch_size=add_batch_size)
 
 
