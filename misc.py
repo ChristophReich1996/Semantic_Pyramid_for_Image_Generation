@@ -24,7 +24,7 @@ def get_masks_for_training(
     '''
     # Select layer where no masking is used. Every output from the deeper layers get mapped out. Every higher layer gets
     # masked by a random shape
-    selected_stage = random.choice(range(len(mask_shapes)))
+    selected_stage = random.choice(list(range(len(mask_shapes))) + [0, 1])
     # Make masks
     masks = []
     # Apply spatial varying masks
