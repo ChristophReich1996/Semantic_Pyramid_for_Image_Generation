@@ -48,17 +48,21 @@ class SemanticReconstructionLoss(nn.Module):
                 feature_fake = self.max_pooling_2d(feature_fake)
                 mask = self.max_pooling_2d(mask)
                 # Normalize features
+                """
                 union = torch.cat((feature_real, feature_fake), dim=0)
                 feature_real, feature_fake = \
                     kornia.normalize_min_max(union).split(split_size=feature_fake.shape[0], dim=0)
+                """
             else:
                 feature_real = self.max_pooling_1d(feature_real.unsqueeze(dim=1))
                 feature_fake = self.max_pooling_1d(feature_fake.unsqueeze(dim=1))
                 mask = self.max_pooling_1d(mask.unsqueeze(dim=1))
                 # Normalize features
+                """
                 union = torch.cat((feature_real, feature_fake), dim=0)
                 feature_real, feature_fake = \
                     kornia.normalize_min_max(union.unsqueeze(dim=1)).split(split_size=feature_fake.shape[0], dim=0)
+                """
             # Calc l1 loss of the real and fake feature conditionalized by the corresponding mask
             loss = loss + torch.mean(torch.abs((feature_real - feature_fake) * mask))
         return loss
