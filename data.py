@@ -50,10 +50,7 @@ class Places365(Dataset):
         if image.shape[0] == 1:
             image = image.repeat_interleave(repeats=3, dim=0)
         # Normalize image
-        image = kornia.normalize(image,
-                                  mean=torch.tensor([0.485, 0.456, 0.406], device=image.device),
-                                  std=torch.tensor([0.229, 0.224, 0.225], device=image.device))
-
+        image = kornia.normalize_min_max(image[None], min_val=-1., max_val=1.)[0]
         # Grayscale to rgb if needed
         if image.shape[0] == 1:
             image = image.repeat_interleave(dim=0, repeats=3)
