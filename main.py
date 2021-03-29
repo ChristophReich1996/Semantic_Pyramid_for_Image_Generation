@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
     # Init optimizers
     generator_optimizer = torch.optim.Adam(generator.parameters(), lr=args.lr)
-    discriminator_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.1 * args.lr)
+    discriminator_optimizer = torch.optim.Adam(discriminator.parameters(), lr=args.lr)
 
     # Load checkpoint
     if args.load_checkpoint is not None:
