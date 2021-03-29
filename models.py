@@ -25,7 +25,8 @@ class Generator(nn.Module):
         # Save parameters
         self.latent_dimensions = latent_dimensions
         # Init linear input layers
-        self.linear_layer = spectral_norm(nn.Linear(in_features=latent_dimensions, out_features=latent_dimensions))
+        self.linear_layer = spectral_norm(
+            nn.Linear(in_features=latent_dimensions, out_features=latent_dimensions, bias=True))
         self.linear_block_1 = LinearBlock(in_features=latent_dimensions, out_features=365, feature_size=365)
         self.linear_block_2 = LinearBlock(in_features=365, out_features=2048, feature_size=4096)
         self.convolution_layer = spectral_norm(
