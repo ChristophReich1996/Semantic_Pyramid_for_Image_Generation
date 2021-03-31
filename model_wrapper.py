@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 import torchvision
 from tqdm import tqdm
+import copy
 import numpy as np
 from datetime import datetime
 import os
@@ -64,6 +65,12 @@ class ModelWrapper(object):
         self.diversity_loss = diversity_loss
         self.latent_dimensions = self.generator.module.latent_dimensions \
             if isinstance(self.generator, nn.DataParallel) else self.generator.latent_dimensions
+        # Make generator ema
+        if isinstance(self.generator, nn.DataParallel):
+            self.generator_ema = copy.deepcopy(self.generator.module.cpu()).cuda()
+            self.generator_ema = nn.DataParallel(self.generator_ema)
+        else:
+            self.generator_ema = copy.deepcopy(self.generator.cpu()).cuda()
         # Calc no gradients for weights of vgg16
         for parameter in self.vgg16.parameters():
             parameter.requires_grad = False
@@ -205,6 +212,8 @@ class ModelWrapper(object):
                     'FID={:.4f}, Loss Div={:.4f}, Loss Rec={:.4f}, Loss G={:.4f}, Loss D={:.4f}'.format(
                         fid, loss_generator_diversity.item(), loss_generator_semantic_reconstruction.item(),
                         loss_generator.item(), (loss_discriminator_fake + loss_discriminator_real).item()))
+                # Perform ema
+                misc.exponential_moving_average(self.generator_ema, self.generator)
                 # Log losses
                 self.logger.log(metric_name='loss_discriminator_real', value=loss_discriminator_real.item())
                 self.logger.log(metric_name='loss_discriminator_fake', value=loss_discriminator_fake.item())
@@ -255,10 +264,10 @@ class ModelWrapper(object):
         for index in range(len(self.validation_masks)):
             self.validation_masks[index] = self.validation_masks[index].to(device)
         # Generate images
-        fake_image = self.generator(input=self.validation_latents,
-                                    features=self.vgg16(self.validation_images_to_plot),
-                                    masks=self.validation_masks,
-                                    class_id=self.validation_labels.float()).cpu()
+        fake_image = self.generator_ema(input=self.validation_latents,
+                                        features=self.vgg16(self.validation_images_to_plot),
+                                        masks=self.validation_masks,
+                                        class_id=self.validation_labels.float()).cpu()
         # Save images
         torchvision.utils.save_image(misc.normalize_0_1_batch(fake_image),
                                      os.path.join(self.path_save_plots, str(self.progress_bar.n) + '.png'),
@@ -296,7 +305,7 @@ class ModelWrapper(object):
             label = label.to(device)[None]
             for masks in masks_levels:
                 # Generate fake images
-                fake_image = self.generator.module(
+                fake_image = self.generator_ema.module(
                     input=torch.randn(1, self.latent_dimensions, dtype=torch.float32, device=device),
                     features=self.vgg16(image),
                     masks=masks,

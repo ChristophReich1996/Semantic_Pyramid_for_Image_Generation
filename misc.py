@@ -1,6 +1,7 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import random
@@ -156,3 +157,21 @@ class Logger(object):
             values = torch.tensor(values)
             # Save values
             torch.save(values, os.path.join(path, '{}.pt'.format(metric_name)))
+
+@torch.no_grad()
+def exponential_moving_average(model_ema: Union[torch.nn.Module, nn.DataParallel],
+                               model_train: Union[torch.nn.Module, nn.DataParallel], decay: float = 0.999) -> None:
+    """
+    Function apples one exponential moving average step to a given model to be accumulated and a given training model
+    :param model_ema: (Union[torch.nn.Module, nn.DataParallel]) Model to be accumulated
+    :param model_train: (Union[torch.nn.Module, nn.DataParallel]) Training model
+    :param decay: (float) Decay factor
+    """
+    # Check types
+    assert type(model_ema) is type(model_train), 'EMA can only be performed on networks of the same type!'
+    # Get parameter dicts
+    model_ema_dict = dict(model_ema.named_parameters())
+    model_train_dict = dict(model_train.named_parameters())
+    # Apply ema
+    for key in model_ema_dict.keys():
+        model_ema_dict[key].data.mul_(decay).add_(1 - decay, model_train_dict[key].data)
