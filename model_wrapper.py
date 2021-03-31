@@ -147,6 +147,11 @@ class ModelWrapper(object):
         fid = self.validate(device=device)
         # Main loop
         for epoch in range(epochs):
+            # Ensure models are in the right mode
+            self.generator.train()
+            self.discriminator.train()
+            self.vgg16.eval()
+            self.generator_ema.eval()
             for images_real, labels, masks in self.training_dataset:
                 ############ Discriminator training ############
                 # Update progress bar with batch size
@@ -256,7 +261,7 @@ class ModelWrapper(object):
         :return: (float, float) IS and FID score
         '''
         # Generator into validation mode
-        self.generator.eval()
+        self.generator_ema.eval()
         self.vgg16.eval()
         # Validation samples for plotting to device
         self.validation_latents = self.validation_latents.to(device)
@@ -272,8 +277,6 @@ class ModelWrapper(object):
         torchvision.utils.save_image(misc.normalize_0_1_batch(fake_image),
                                      os.path.join(self.path_save_plots, str(self.progress_bar.n) + '.png'),
                                      nrow=7)
-        # Generator back into train mode
-        self.generator.train()
         return frechet_inception_distance(dataset_real=self.validation_dataset_fid,
                                           generator=self.generator_ema, vgg16=self.vgg16)
 
@@ -283,10 +286,10 @@ class ModelWrapper(object):
         Random images for different feature levels are generated and saved
         '''
         # Models to device
-        self.generator.to(device)
+        self.generator_ema.to(device)
         self.vgg16.to(device)
         # Generator into eval mode
-        self.generator.eval()
+        self.generator_ema.eval()
         # Get random images form validation dataset
         images, labels, _ = image_label_list_of_masks_collate_function(
             [self.validation_dataset_fid.dataset[index] for index in
@@ -325,5 +328,3 @@ class ModelWrapper(object):
         torchvision.utils.save_image(
             misc.normalize_0_1_batch(fake_images),
             os.path.join(self.path_save_plots, 'predictions_{}.png'.format(str(datetime.now()))), nrow=7)
-        # Generator back into train mode
-        self.generator.train()
