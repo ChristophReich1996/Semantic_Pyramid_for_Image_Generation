@@ -160,7 +160,7 @@ class Logger(object):
 
 @torch.no_grad()
 def exponential_moving_average(model_ema: Union[torch.nn.Module, nn.DataParallel],
-                               model_train: Union[torch.nn.Module, nn.DataParallel], decay: float = 0.999) -> None:
+                               model_train: Union[torch.nn.Module, nn.DataParallel], decay: float = 0.99) -> None:
     """
     Function apples one exponential moving average step to a given model to be accumulated and a given training model
     :param model_ema: (Union[torch.nn.Module, nn.DataParallel]) Model to be accumulated
