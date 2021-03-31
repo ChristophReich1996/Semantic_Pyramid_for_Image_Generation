@@ -275,7 +275,7 @@ class ModelWrapper(object):
         # Generator back into train mode
         self.generator.train()
         return frechet_inception_distance(dataset_real=self.validation_dataset_fid,
-                                          generator=self.generator, vgg16=self.vgg16)
+                                          generator=self.generator_ema, vgg16=self.vgg16)
 
     @torch.no_grad()
     def inference(self, device: str = 'cuda') -> None:
@@ -305,11 +305,18 @@ class ModelWrapper(object):
             label = label.to(device)[None]
             for masks in masks_levels:
                 # Generate fake images
-                fake_image = self.generator_ema.module(
-                    input=torch.randn(1, self.latent_dimensions, dtype=torch.float32, device=device),
-                    features=self.vgg16(image),
-                    masks=masks,
-                    class_id=label.float())
+                if isinstance(self.generator_ema, nn.DataParallel):
+                    fake_image = self.generator_ema.module(
+                        input=torch.randn(1, self.latent_dimensions, dtype=torch.float32, device=device),
+                        features=self.vgg16(image),
+                        masks=masks,
+                        class_id=label.float())
+                else:
+                    fake_image = self.generator_ema(
+                        input=torch.randn(1, self.latent_dimensions, dtype=torch.float32, device=device),
+                        features=self.vgg16(image),
+                        masks=masks,
+                        class_id=label.float())
                 # Save fake images
                 fake_images[counter] = fake_image.squeeze(dim=0)
                 # Increment counter
