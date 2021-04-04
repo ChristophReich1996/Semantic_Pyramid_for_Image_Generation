@@ -27,8 +27,7 @@ class ModelWrapper(object):
                  generator: Union[Generator, nn.DataParallel],
                  discriminator: Union[Discriminator, nn.DataParallel],
                  training_dataset: DataLoader,
-                 validation_dataset: Dataset,
-                 validation_dataset_fid: DataLoader,
+                 validation_dataset: DataLoader,
                  vgg16: Union[VGG16, nn.DataParallel] = VGG16(),
                  generator_optimizer: torch.optim.Optimizer = None,
                  discriminator_optimizer: torch.optim.Optimizer = None,
@@ -54,8 +53,7 @@ class ModelWrapper(object):
         self.generator = generator
         self.discriminator = discriminator
         self.training_dataset = training_dataset
-        self.validation_dataset = validation_dataset
-        self.validation_dataset_fid = validation_dataset_fid
+        self.validation_dataset_fid = validation_dataset
         self.vgg16 = vgg16
         self.generator_optimizer = generator_optimizer
         self.discriminator_optimizer = discriminator_optimizer
@@ -87,22 +85,6 @@ class ModelWrapper(object):
         self.path_save_metrics = os.path.join(save_data_path, 'metrics_' + time_and_date)
         if not os.path.exists(self.path_save_metrics):
             os.makedirs(self.path_save_metrics)
-        # Make indexes for validation plots
-        validation_plot_indexes = np.random.choice(range(len(self.validation_dataset_fid.dataset)), 49, replace=False)
-        # Plot and save validation images used to plot generated images
-        self.validation_images_to_plot, self.validation_labels, self.validation_masks \
-            = image_label_list_of_masks_collate_function(
-            [self.validation_dataset_fid.dataset[index] for index in validation_plot_indexes])
-
-        torchvision.utils.save_image(misc.normalize_0_1_batch(self.validation_images_to_plot),
-                                     os.path.join(self.path_save_plots, 'validation_images.png'), nrow=7)
-        # Plot masks
-        for stage in range(len(self.validation_masks)):
-            torchvision.utils.save_image(self.validation_masks[stage],
-                                         os.path.join(self.path_save_plots, 'validation_masks_{}.png'.format(stage)),
-                                         nrow=7)
-        # Generate latents for validation
-        self.validation_latents = torch.randn(49, self.latent_dimensions, dtype=torch.float32)
         # Log hyperparameter
         self.logger.hyperparameter['generator'] = str(self.generator)
         self.logger.hyperparameter['discriminator'] = str(self.discriminator)
