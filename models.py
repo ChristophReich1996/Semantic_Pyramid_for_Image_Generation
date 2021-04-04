@@ -29,9 +29,10 @@ class Generator(nn.Module):
             nn.Linear(in_features=latent_dimensions, out_features=latent_dimensions, bias=True))
         self.linear_block_1 = LinearBlock(in_features=latent_dimensions, out_features=365, feature_size=365)
         self.linear_block_2 = LinearBlock(in_features=365, out_features=2048, feature_size=4096)
-        self.convolution_layer = spectral_norm(
-            nn.Conv2d(in_channels=128, out_channels=int(512 // channels_factor), kernel_size=(1, 1), padding=(0, 0),
-                      stride=(1, 1), bias=True))
+        self.convolution_layer = nn.Sequential(
+            nn.LeakyReLU(negative_slope=0.2),
+            spectral_norm(nn.Conv2d(in_channels=128, out_channels=int(512 // channels_factor), kernel_size=(1, 1),
+                                    padding=(0, 0), stride=(1, 1), bias=True)))
         # Init main residual path
         self.main_path = nn.ModuleList([
             GeneratorResidualBlock(in_channels=int(512 // channels_factor), out_channels=int(512 // channels_factor),
