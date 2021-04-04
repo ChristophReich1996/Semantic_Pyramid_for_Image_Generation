@@ -127,7 +127,7 @@ class ModelWrapper(object):
         # Initial validation
         self.progress_bar.set_description('Validation')
         self.inference(device=device)
-        fid = self.validate(device=device)
+        fid = self.validate()
         # Main loop
         for epoch in range(epochs):
             # Ensure models are in the right mode
@@ -214,7 +214,7 @@ class ModelWrapper(object):
                 # Validate model
                 if self.progress_bar.n % validate_after_n_iterations == 0:
                     self.progress_bar.set_description('Validation')
-                    fid = self.validate(device=device)
+                    fid = self.validate()
                     self.inference(device=device)
                     # Log fid
                     self.logger.log(metric_name='fid', value=fid)
