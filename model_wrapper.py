@@ -63,12 +63,6 @@ class ModelWrapper(object):
         self.diversity_loss = diversity_loss
         self.latent_dimensions = self.generator.module.latent_dimensions \
             if isinstance(self.generator, nn.DataParallel) else self.generator.latent_dimensions
-        # Make generator ema
-        if isinstance(self.generator, nn.DataParallel):
-            self.generator_ema = copy.deepcopy(self.generator.module.cpu()).cuda()
-            self.generator_ema = nn.DataParallel(self.generator_ema)
-        else:
-            self.generator_ema = copy.deepcopy(self.generator.cpu()).cuda()
         # Calc no gradients for weights of vgg16
         for parameter in self.vgg16.parameters():
             parameter.requires_grad = False
@@ -134,7 +128,6 @@ class ModelWrapper(object):
             self.generator.train()
             self.discriminator.train()
             self.vgg16.eval()
-            self.generator_ema.eval()
             for images_real, labels, masks in self.training_dataset:
                 ############ Discriminator training ############
                 # Update progress bar with batch size
@@ -200,8 +193,6 @@ class ModelWrapper(object):
                     'FID={:.4f}, Loss Div={:.4f}, Loss Rec={:.4f}, Loss G={:.4f}, Loss D={:.4f}'.format(
                         fid, loss_generator_diversity.item(), loss_generator_semantic_reconstruction.item(),
                         loss_generator.item(), (loss_discriminator_fake + loss_discriminator_real).item()))
-                # Perform ema
-                misc.exponential_moving_average(self.generator_ema, self.generator)
                 # Log losses
                 self.logger.log(metric_name='loss_discriminator_real', value=loss_discriminator_real.item())
                 self.logger.log(metric_name='loss_discriminator_fake', value=loss_discriminator_fake.item())
@@ -244,11 +235,14 @@ class ModelWrapper(object):
         :return: (float, float) IS and FID score
         '''
         # Generator into validation mode
-        self.generator_ema.eval()
+        self.generator.eval()
         self.vgg16.eval()
         # Calc FID score
-        return frechet_inception_distance(dataset_real=self.validation_dataset_fid,
-                                          generator=self.generator_ema, vgg16=self.vgg16)
+        fid = frechet_inception_distance(dataset_real=self.validation_dataset_fid,
+                                         generator=self.generator, vgg16=self.vgg16)
+        # Back into train mode
+        self.generator.train()
+        return fid
 
     @torch.no_grad()
     def inference(self, device: str = 'cuda') -> None:
@@ -256,10 +250,10 @@ class ModelWrapper(object):
         Random images for different feature levels are generated and saved
         '''
         # Models to device
-        self.generator_ema.to(device)
+        self.generator.to(device)
         self.vgg16.to(device)
         # Generator into eval mode
-        self.generator_ema.eval()
+        self.generator.eval()
         # Get random images form validation dataset
         images, labels, _ = image_label_list_of_masks_collate_function(
             [self.validation_dataset_fid.dataset[index] for index in
@@ -278,14 +272,14 @@ class ModelWrapper(object):
             label = label.to(device)[None]
             for masks in masks_levels:
                 # Generate fake images
-                if isinstance(self.generator_ema, nn.DataParallel):
-                    fake_image = self.generator_ema.module(
+                if isinstance(self.generator, nn.DataParallel):
+                    fake_image = self.generator.module(
                         input=torch.randn(1, self.latent_dimensions, dtype=torch.float32, device=device),
                         features=self.vgg16(image),
                         masks=masks,
                         class_id=label.float())
                 else:
-                    fake_image = self.generator_ema(
+                    fake_image = self.generator(
                         input=torch.randn(1, self.latent_dimensions, dtype=torch.float32, device=device),
                         features=self.vgg16(image),
                         masks=masks,
@@ -298,3 +292,5 @@ class ModelWrapper(object):
         torchvision.utils.save_image(
             misc.normalize_0_1_batch(fake_images),
             os.path.join(self.path_save_plots, 'predictions_{}.png'.format(self.progress_bar.n)), nrow=7)
+        # Back into training mode
+        self.generator.train()
