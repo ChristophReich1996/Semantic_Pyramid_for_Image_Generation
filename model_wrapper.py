@@ -97,9 +97,10 @@ class ModelWrapper(object):
         torchvision.utils.save_image(misc.normalize_0_1_batch(self.validation_images_to_plot),
                                      os.path.join(self.path_save_plots, 'validation_images.png'), nrow=7)
         # Plot masks
-        torchvision.utils.save_image(self.validation_masks[0],
-                                     os.path.join(self.path_save_plots, 'validation_masks.png'),
-                                     nrow=7)
+        for stage in range(len(self.validation_masks)):
+            torchvision.utils.save_image(self.validation_masks[stage],
+                                         os.path.join(self.path_save_plots, 'validation_masks_{}.png'.format(stage)),
+                                         nrow=7)
         # Generate latents for validation
         self.validation_latents = torch.randn(49, self.latent_dimensions, dtype=torch.float32)
         # Log hyperparameter
@@ -254,7 +255,7 @@ class ModelWrapper(object):
         self.progress_bar.close()
 
     @torch.no_grad()
-    def validate(self, device: str = 'cuda') -> float:
+    def validate(self) -> float:
         '''
         FID score gets estimated
         :param plot: (bool) True if samples should be plotted
@@ -263,20 +264,7 @@ class ModelWrapper(object):
         # Generator into validation mode
         self.generator_ema.eval()
         self.vgg16.eval()
-        # Validation samples for plotting to device
-        self.validation_latents = self.validation_latents.to(device)
-        self.validation_images_to_plot = self.validation_images_to_plot.to(device)
-        for index in range(len(self.validation_masks)):
-            self.validation_masks[index] = self.validation_masks[index].to(device)
-        # Generate images
-        fake_image = self.generator_ema(input=self.validation_latents,
-                                        features=self.vgg16(self.validation_images_to_plot),
-                                        masks=self.validation_masks,
-                                        class_id=self.validation_labels.float()).cpu()
-        # Save images
-        torchvision.utils.save_image(misc.normalize_0_1_batch(fake_image),
-                                     os.path.join(self.path_save_plots, str(self.progress_bar.n) + '.png'),
-                                     nrow=7)
+        # Calc FID score
         return frechet_inception_distance(dataset_real=self.validation_dataset_fid,
                                           generator=self.generator_ema, vgg16=self.vgg16)
 
@@ -327,4 +315,4 @@ class ModelWrapper(object):
         # Save tensor as image
         torchvision.utils.save_image(
             misc.normalize_0_1_batch(fake_images),
-            os.path.join(self.path_save_plots, 'predictions_{}.png'.format(str(datetime.now()))), nrow=7)
+            os.path.join(self.path_save_plots, 'predictions_{}.png'.format(self.progress_bar.n)), nrow=7)
