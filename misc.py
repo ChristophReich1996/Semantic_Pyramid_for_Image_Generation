@@ -158,6 +158,7 @@ class Logger(object):
             # Save values
             torch.save(values, os.path.join(path, '{}.pt'.format(metric_name)))
 
+
 @torch.no_grad()
 def exponential_moving_average(model_ema: Union[torch.nn.Module, nn.DataParallel],
                                model_train: Union[torch.nn.Module, nn.DataParallel], decay: float = 0.99) -> None:
