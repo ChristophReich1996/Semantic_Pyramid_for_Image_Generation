@@ -49,7 +49,7 @@ class Generator(nn.Module):
         ])
         # Init final block
         self.final_block = nn.Sequential(
-            nn.UpsamplingNearest2d(scale_factor=2),
+            nn.UpsamplingBilinear2d(scale_factor=2),
             nn.BatchNorm2d(int(64 // channels_factor)),
             nn.LeakyReLU(negative_slope=0.2),
             spectral_norm(nn.Conv2d(in_channels=int(64 // channels_factor), out_channels=int(64 // channels_factor),
@@ -295,7 +295,7 @@ class GeneratorResidualBlock(nn.Module):
         self.main_block = nn.ModuleList([
             ConditionalBatchNorm(num_features=in_channels, number_of_classes=number_of_classes),
             nn.LeakyReLU(negative_slope=0.2),
-            nn.UpsamplingNearest2d(scale_factor=2),
+            nn.UpsamplingBilinear2d(scale_factor=2),
             spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
                                     kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=True)),
             ConditionalBatchNorm(num_features=out_channels, number_of_classes=number_of_classes),
@@ -305,7 +305,7 @@ class GeneratorResidualBlock(nn.Module):
         ])
         # Init residual mapping
         self.residual_mapping = nn.Sequential(
-            nn.UpsamplingNearest2d(scale_factor=2),
+            nn.UpsamplingBilinear2d(scale_factor=2),
             spectral_norm(nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 1),
                                     stride=(1, 1), padding=(0, 0), bias=True)))
         # Init convolution for mapping the masked features
@@ -356,7 +356,8 @@ class LinearBlock(nn.Module):
             spectral_norm(nn.Linear(in_features=in_features, out_features=out_features, bias=True))
         )
         # Init mapping the masked features
-        self.masked_feature_mapping = nn.Linear(in_features=feature_size, out_features=out_features, bias=True)
+        self.masked_feature_mapping = spectral_norm(
+            nn.Linear(in_features=feature_size, out_features=out_features, bias=True))
 
     def forward(self, input: torch.Tensor, masked_features: torch.Tensor) -> torch.Tensor:
         '''
