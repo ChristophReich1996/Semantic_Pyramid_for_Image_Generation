@@ -220,7 +220,7 @@ class ModelWrapper(object):
                      if isinstance(self.discriminator, nn.DataParallel) else self.discriminator.state_dict(),
                      "generator_optimizer": self.generator_optimizer.state_dict(),
                      "discriminator_optimizer": self.discriminator_optimizer.state_dict()},
-                    os.path.join(self.path_save_models, 'checkpoint_{}.pt'.format(epoch)))
+                    os.path.join(self.path_save_models, 'checkpoint_{}.pt'.format(str(epoch).zfill(3))))
             self.inference(device=device)
             # Save all logs
             self.logger.save_metrics(self.path_save_metrics)
